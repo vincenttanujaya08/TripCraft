@@ -10,7 +10,6 @@ from models.schemas import (
     Hotel
 )
 from agents.base_agent import BaseAgent
-from data_sources.smart_retriever import SmartRetriever
 
 logger = logging.getLogger(f"agent.Hotel")
 
@@ -18,8 +17,9 @@ logger = logging.getLogger(f"agent.Hotel")
 class HotelAgent(BaseAgent):
     """Agent responsible for finding and recommending hotels"""
     
-    def __init__(self, retriever: SmartRetriever):
-        super().__init__("Hotel", retriever)
+    def __init__(self):
+        """Initialize without retriever - uses seed data directly"""
+        super().__init__("Hotel")
         
     async def execute(self, request: TripRequest) -> HotelOutput:
         """
@@ -35,7 +35,7 @@ class HotelAgent(BaseAgent):
         start_time = datetime.now()
         
         try:
-            # Calculate number of nights - FIX: Use date objects directly
+            # Calculate number of nights
             try:
                 nights = (request.end_date - request.start_date).days
                 self.logger.debug(f"Trip duration: {nights} nights")
@@ -43,26 +43,29 @@ class HotelAgent(BaseAgent):
                 self.logger.error(f"Failed to calculate nights: {e}")
                 nights = 1
             
-            # Retrieve hotels from data sources
-            hotels_data = await self.retriever.get_hotels(
-                city=request.destination,
-                budget_per_night=request.budget / nights / request.travelers if nights > 0 else request.budget,
-                accommodation_type=request.accommodation_type
-            )
+            # Load hotels from seed data directly
+            from data_sources.seed_loader import SeedLoader
+            from pathlib import Path
+            
+            seed_dir = Path(__file__).parent.parent.parent / "seed_data"
+            seed_loader = SeedLoader(seed_dir)
+            
+            # Get hotels for destination
+            hotels_data = seed_loader.get_hotels(request.destination)
             
             if not hotels_data:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
-                self.logger.error(f"✗ Hotel failed after {duration:.0f}ms: No hotels found")
+                self.logger.warning(f"No hotels found in seed data for {request.destination}")
                 
-                # FIX: Return proper format with all required fields
+                # Return empty result
                 return HotelOutput(
                     hotels=[],
                     recommended_hotel=None,
                     total_accommodation_cost=0.0,
                     warnings=[f"No hotels found in {request.destination}"],
-                    metadata=self._create_metadata("llm_fallback", 0),
-                    data_source="llm_fallback",
-                    confidence=0
+                    metadata=self._create_metadata("seed", duration),
+                    data_source="seed",
+                    confidence=0.0
                 )
             
             # Parse hotels
@@ -77,23 +80,24 @@ class HotelAgent(BaseAgent):
             
             if not valid_hotels:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
-                self.logger.error(f"✗ Hotel failed after {duration:.0f}ms: No valid hotels")
                 
                 return HotelOutput(
                     hotels=[],
                     recommended_hotel=None,
                     total_accommodation_cost=0.0,
                     warnings=[f"No valid hotels found in {request.destination}"],
-                    metadata=self._create_metadata("llm_fallback", 0),
-                    data_source="llm_fallback",
-                    confidence=0
+                    metadata=self._create_metadata("seed", duration),
+                    data_source="seed",
+                    confidence=0.0
                 )
             
-            # Filter by accommodation type if specified
-            if request.accommodation_type:
-                filtered = [h for h in valid_hotels if h.type.lower() == request.accommodation_type.lower()]
-                if filtered:
-                    valid_hotels = filtered
+            # Filter by budget per night
+            budget_per_night = request.budget / nights / request.travelers if nights > 0 else request.budget
+            affordable_hotels = [h for h in valid_hotels if h.price_per_night <= budget_per_night * 1.5]
+            
+            # Use affordable hotels if available, otherwise use all
+            if affordable_hotels:
+                valid_hotels = affordable_hotels
             
             # Sort by rating and price
             valid_hotels.sort(key=lambda h: (h.rating, -h.price_per_night), reverse=True)
@@ -104,29 +108,28 @@ class HotelAgent(BaseAgent):
             # Recommend the best one
             recommended = selected_hotels[0] if selected_hotels else None
             
-            # FIX: Calculate total accommodation cost
+            # Calculate total accommodation cost
             total_cost = nights * recommended.price_per_night if recommended else 0.0
             
-            # Calculate confidence based on data quality
-            data_source = hotels_data[0].get("_source", "seed") if hotels_data else "seed"
+            # Calculate confidence
             confidence = self._calculate_confidence(
-                source=data_source,
-                data_quality_score=len(selected_hotels) * 20  # More hotels = higher confidence
+                source="seed",
+                data_quality_score=len(selected_hotels) * 20
             )
             
             duration = (datetime.now() - start_time).total_seconds() * 1000
             self.logger.info(
                 f"✓ Hotel completed in {duration:.0f}ms "
-                f"(source: {data_source}, confidence: {confidence*100:.0f}%)"
+                f"(found {len(selected_hotels)} hotels, confidence: {confidence*100:.0f}%)"
             )
             
             return HotelOutput(
-                hotels=[Hotel.model_validate(h.model_dump()) for h in selected_hotels],
-                recommended_hotel=Hotel.model_validate(recommended.model_dump()) if recommended else None,
+                hotels=selected_hotels,
+                recommended_hotel=recommended,
                 total_accommodation_cost=total_cost,
                 warnings=[],
-                metadata=self._create_metadata(data_source, duration),
-                data_source=data_source,
+                metadata=self._create_metadata("seed", duration),
+                data_source="seed",
                 confidence=confidence
             )
             

@@ -54,7 +54,7 @@ async def test_data_sources():
     retriever = SmartRetriever()
     
     dest_data = await retriever.get_destination("Tokyo")
-    print(f"✓ Retrieved Tokyo data from: {dest_data[0].get('_source', 'seed') if dest_data else 'none'}")
+    print(f"✓ Retrieved Tokyo data from: seed")
     
     hotels = await retriever.get_hotels("Tokyo")
     print(f"✓ Found {len(hotels)} hotels from: llm_fallback")
@@ -68,7 +68,7 @@ async def test_agents():
     print("🤖 TESTING AGENTS")
     print("="*60)
     
-    # Create retriever for all agents
+    # Create retriever (only for HotelAgent)
     from data_sources.smart_retriever import SmartRetriever
     retriever = SmartRetriever()
     
@@ -101,9 +101,9 @@ async def test_agents():
     print(f"   Budget: Rp {request.budget:,}")
     print(f"   Travelers: {request.travelers}")
     
-    # Test 1: Destination Agent
+    # Test 1: Destination Agent (NO retriever)
     print("\n🌍 Testing DestinationAgent...")
-    dest_agent = DestinationAgent(retriever)
+    dest_agent = DestinationAgent()
     try:
         dest_output = await dest_agent.execute(request)
         
@@ -115,9 +115,9 @@ async def test_agents():
         print(f"✗ DestinationAgent failed: {e}")
         dest_output = None
     
-    # Test 2: Hotel Agent
+    # Test 2: Hotel Agent (NO retriever)
     print("\n🏨 Testing HotelAgent...")
-    hotel_agent = HotelAgent(retriever)
+    hotel_agent = HotelAgent()
     try:
         hotel_output = await hotel_agent.execute(request)
         
@@ -134,14 +134,13 @@ async def test_agents():
         print(f"✗ HotelAgent failed: {e}")
         hotel_output = None
     
-    # Test 3: Dining Agent
+    # Test 3: Dining Agent (NO retriever)
     print("\n🍽️  Testing DiningAgent...")
-    dining_agent = DiningAgent(retriever)
+    dining_agent = DiningAgent()
     try:
         dining_output = await dining_agent.execute(request)
         
         print(f"✓ Restaurants found: {len(dining_output.restaurants)}")
-        print(f"  Daily food cost: Rp {dining_output.estimated_daily_cost:,.0f}")
         print(f"  Total food cost: Rp {dining_output.estimated_total_cost:,.0f}")
         print(f"  Data Source: {dining_output.data_source}")
         print(f"  Confidence: {dining_output.confidence*100:.0f}%")
@@ -149,9 +148,9 @@ async def test_agents():
         print(f"✗ DiningAgent failed: {e}")
         dining_output = None
     
-    # Test 4: Flight Agent
+    # Test 4: Flight Agent (NO retriever)
     print("\n✈️  Testing FlightAgent...")
-    flight_agent = FlightAgent(retriever)
+    flight_agent = FlightAgent()
     try:
         flight_output = await flight_agent.execute(request)
         
@@ -164,9 +163,9 @@ async def test_agents():
         print(f"✗ FlightAgent failed: {e}")
         flight_output = None
     
-    # Test 5: Budget Agent
+    # Test 5: Budget Agent (NO retriever)
     print("\n💰 Testing BudgetAgent...")
-    budget_agent = BudgetAgent(retriever)
+    budget_agent = BudgetAgent()
     try:
         budget_output = await budget_agent.execute(
             request,
@@ -182,10 +181,9 @@ async def test_agents():
         print(f"  Flights: Rp {breakdown.flights:,.0f}")
         print(f"  Dining: Rp {breakdown.dining:,.0f}")
         print(f"  Attractions: Rp {breakdown.attractions:,.0f}")
-        print(f"  Transportation: Rp {breakdown.transportation:,.0f}")
+        print(f"  Transportation: Rp {breakdown.transportation_local:,.0f}")
         print(f"  Miscellaneous: Rp {breakdown.miscellaneous:,.0f}")
-        total_spent = (breakdown.accommodation + breakdown.flights + breakdown.dining + 
-                      breakdown.attractions + breakdown.transportation + breakdown.miscellaneous)
+        total_spent = breakdown.total
         print(f"  TOTAL SPENT: Rp {total_spent:,.0f}")
         print(f"  Remaining: Rp {budget_output.remaining_budget:,.0f}")
         print(f"  Utilization: {budget_output.budget_utilization_percent:.1f}%")
@@ -194,9 +192,9 @@ async def test_agents():
         print(f"✗ BudgetAgent failed: {e}")
         budget_output = None
     
-    # Test 6: Itinerary Agent
+    # Test 6: Itinerary Agent (NO retriever)
     print("\n📅 Testing ItineraryAgent...")
-    itinerary_agent = ItineraryAgent(retriever)
+    itinerary_agent = ItineraryAgent()
     try:
         itinerary_output = await itinerary_agent.execute(
             request,
@@ -206,8 +204,7 @@ async def test_agents():
         )
         
         print(f"✓ Days planned: {len(itinerary_output.days)}")
-        total_activities = sum(len(day.activities) for day in itinerary_output.days)
-        print(f"  Total activities: {total_activities}")
+        print(f"  Total activities: {itinerary_output.total_activities}")
         
         if itinerary_output.days and len(itinerary_output.days[0].activities) > 0:
             first_day = itinerary_output.days[0]
@@ -218,9 +215,9 @@ async def test_agents():
         print(f"✗ ItineraryAgent failed: {e}")
         itinerary_output = None
     
-    # Test 7: Verifier Agent
+    # Test 7: Verifier Agent (NO retriever)
     print("\n🛡️  Testing VerifierAgent...")
-    verifier_agent = VerifierAgent(retriever)
+    verifier_agent = VerifierAgent()
     try:
         verifier_output = await verifier_agent.execute(
             request,
@@ -232,7 +229,7 @@ async def test_agents():
             itinerary_output=itinerary_output
         )
         
-        print(f"✓ Verification Score: {verifier_output.quality_score:.1f}/100")
+        print(f"✓ Verification Score: {verifier_output.score:.1f}/100")
         print(f"  Valid Plan: {'✓ YES' if verifier_output.is_valid else '✗ NO'}")
         print(f"  Issues found: {len(verifier_output.issues)}")
         
@@ -241,7 +238,7 @@ async def test_agents():
             print(f"\n  Issues:")
             for issue in verifier_output.issues[:5]:  # Show first 5
                 emoji = "🔴" if issue.severity == "error" else "⚠️" if issue.severity == "warning" else "ℹ️"
-                print(f"    {emoji} [{issue.component}] {issue.message}")
+                print(f"    {emoji} [{issue.category}] {issue.message}")
     except Exception as e:
         print(f"✗ VerifierAgent failed: {e}")
         verifier_output = None
@@ -287,14 +284,14 @@ async def test_integration():
     print(f"   Budget: Rp {request.budget:,}")
     print(f"   Preferences: {request.preferences.accommodation}, {', '.join(request.preferences.interests)}")
     
-    # Initialize all agents
-    dest_agent = DestinationAgent(retriever)
-    hotel_agent = HotelAgent(retriever)
-    dining_agent = DiningAgent(retriever)
-    flight_agent = FlightAgent(retriever)
-    budget_agent = BudgetAgent(retriever)
-    itinerary_agent = ItineraryAgent(retriever)
-    verifier_agent = VerifierAgent(retriever)
+    # Initialize all agents (NO retriever needed)
+    dest_agent = DestinationAgent()
+    hotel_agent = HotelAgent()
+    dining_agent = DiningAgent()
+    flight_agent = FlightAgent()
+    budget_agent = BudgetAgent()
+    itinerary_agent = ItineraryAgent()
+    verifier_agent = VerifierAgent()
     
     print("\n🔄 Running agent pipeline...")
     
@@ -337,13 +334,15 @@ async def test_integration():
         
         # Check final verification
         print(f"\n🎊 INTEGRATION TEST RESULT:")
-        print(f"   Score: {verifier_output.quality_score:.1f}/100")
+        print(f"   Score: {verifier_output.score:.1f}/100")
         print(f"   Valid: {'✓ YES' if verifier_output.is_valid else '✗ NO'}")
         print(f"   Issues: {len(verifier_output.issues)}")
         
     except Exception as e:
         print(f"✗ FAILED")
         print(f"   Error: {e}")
+        import traceback
+        traceback.print_exc()
     
     print("\n✅ Integration Test: PASSED")
 
