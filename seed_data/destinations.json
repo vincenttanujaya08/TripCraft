@@ -1,0 +1,422 @@
+{
+  "destinations": [
+    {
+      "name": "Bali",
+      "country": "Indonesia",
+      "description": "Island paradise known for stunning beaches, ancient temples, lush rice terraces, and vibrant culture. Perfect blend of relaxation and adventure.",
+      "best_time_to_visit": "April-October (dry season)",
+      "local_currency": "IDR",
+      "timezone": "WITA (UTC+8)",
+      "language": "Indonesian, Balinese",
+      "safety_tips": [
+        "Respect temple dress codes (sarong required)",
+        "Beware of monkeys at tourist sites",
+        "Use registered taxis or ride-hailing apps",
+        "Dress modestly outside beach areas"
+      ],
+      "attractions": [
+        {
+          "name": "Tanah Lot Temple",
+          "type": "temple",
+          "description": "Iconic sea temple perched on a rock formation, best visited at sunset",
+          "entrance_fee": 60000,
+          "estimated_duration_hours": 2.0,
+          "opening_hours": "07:00-19:00"
+        },
+        {
+          "name": "Tegallalang Rice Terraces",
+          "type": "nature",
+          "description": "Stunning emerald-green rice paddies with traditional Subak irrigation system",
+          "entrance_fee": 20000,
+          "estimated_duration_hours": 1.5,
+          "opening_hours": "08:00-18:00"
+        },
+        {
+          "name": "Ubud Monkey Forest",
+          "type": "nature",
+          "description": "Sacred sanctuary home to over 700 long-tailed macaques",
+          "entrance_fee": 80000,
+          "estimated_duration_hours": 2.0,
+          "opening_hours": "09:00-17:00"
+        },
+        {
+          "name": "Uluwatu Temple",
+          "type": "temple",
+          "description": "Clifftop temple with breathtaking ocean views and Kecak dance performances",
+          "entrance_fee": 50000,
+          "estimated_duration_hours": 2.5,
+          "opening_hours": "09:00-18:00"
+        }
+      ]
+    },
+    {
+      "name": "Bangkok",
+      "country": "Thailand",
+      "description": "Vibrant capital city blending ancient temples, bustling street markets, modern malls, and world-class street food.",
+      "best_time_to_visit": "November-February (cool season)",
+      "local_currency": "THB",
+      "timezone": "ICT (UTC+7)",
+      "language": "Thai",
+      "safety_tips": [
+        "Use metered taxis or Grab app",
+        "Beware of gem scams near temples",
+        "Dress modestly at temples",
+        "Stay hydrated in hot weather"
+      ],
+      "attractions": [
+        {
+          "name": "Grand Palace",
+          "type": "palace",
+          "description": "Magnificent royal complex with ornate buildings and the revered Emerald Buddha",
+          "entrance_fee": 500,
+          "estimated_duration_hours": 3.0,
+          "opening_hours": "08:30-15:30"
+        },
+        {
+          "name": "Wat Pho",
+          "type": "temple",
+          "description": "Home to the famous 46-meter reclining Buddha covered in gold leaf",
+          "entrance_fee": 200,
+          "estimated_duration_hours": 1.5,
+          "opening_hours": "08:00-18:30"
+        },
+        {
+          "name": "Chatuchak Weekend Market",
+          "type": "market",
+          "description": "Massive market with over 15,000 stalls selling everything imaginable",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 3.0,
+          "opening_hours": "09:00-18:00 (weekends only)"
+        }
+      ]
+    },
+    {
+      "name": "Singapore",
+      "country": "Singapore",
+      "description": "Futuristic city-state combining diverse cultures, world-class dining, architectural marvels, and efficient public transport.",
+      "best_time_to_visit": "February-April (less humid)",
+      "local_currency": "SGD",
+      "timezone": "SGT (UTC+8)",
+      "language": "English, Mandarin, Malay, Tamil",
+      "safety_tips": [
+        "Follow strict littering laws (hefty fines)",
+        "No chewing gum allowed",
+        "Use MRT for easy navigation",
+        "Tap water is safe to drink"
+      ],
+      "attractions": [
+        {
+          "name": "Gardens by the Bay",
+          "type": "park",
+          "description": "Futuristic garden with iconic Supertree Grove and climate-controlled domes",
+          "entrance_fee": 28,
+          "estimated_duration_hours": 3.0,
+          "opening_hours": "05:00-02:00"
+        },
+        {
+          "name": "Marina Bay Sands SkyPark",
+          "type": "observation",
+          "description": "Rooftop observation deck with panoramic city views",
+          "entrance_fee": 23,
+          "estimated_duration_hours": 1.5,
+          "opening_hours": "11:00-21:00"
+        },
+        {
+          "name": "Sentosa Island",
+          "type": "resort",
+          "description": "Resort island with beaches, Universal Studios, and entertainment",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 6.0,
+          "opening_hours": "24/7"
+        }
+      ]
+    },
+    {
+      "name": "Tokyo",
+      "country": "Japan",
+      "description": "Electric metropolis where ancient traditions meet cutting-edge technology, offering world-class cuisine, shopping, and culture.",
+      "best_time_to_visit": "March-May, September-November",
+      "local_currency": "JPY",
+      "timezone": "JST (UTC+9)",
+      "language": "Japanese",
+      "safety_tips": [
+        "Learn basic Japanese phrases",
+        "Remove shoes when entering homes/temples",
+        "Don't tip (considered rude)",
+        "Stand on left on escalators"
+      ],
+      "attractions": [
+        {
+          "name": "Senso-ji Temple",
+          "type": "temple",
+          "description": "Tokyo's oldest temple in historic Asakusa district",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 2.0,
+          "opening_hours": "06:00-17:00"
+        },
+        {
+          "name": "Shibuya Crossing",
+          "type": "landmark",
+          "description": "World's busiest pedestrian crossing, iconic Tokyo experience",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 0.5,
+          "opening_hours": "24/7"
+        },
+        {
+          "name": "Meiji Shrine",
+          "type": "shrine",
+          "description": "Peaceful Shinto shrine surrounded by dense forest in central Tokyo",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 1.5,
+          "opening_hours": "Sunrise-sunset"
+        }
+      ]
+    },
+    {
+      "name": "Seoul",
+      "country": "South Korea",
+      "description": "Dynamic capital blending K-pop culture, historic palaces, cutting-edge technology, and incredible food scene.",
+      "best_time_to_visit": "March-May, September-November",
+      "local_currency": "KRW",
+      "timezone": "KST (UTC+9)",
+      "language": "Korean",
+      "safety_tips": [
+        "Learn Korean alphabet (Hangul) basics",
+        "Bow when greeting elders",
+        "Don't write names in red ink",
+        "T-money card essential for transport"
+      ],
+      "attractions": [
+        {
+          "name": "Gyeongbokgung Palace",
+          "type": "palace",
+          "description": "Largest and most iconic of Seoul's five grand palaces",
+          "entrance_fee": 3000,
+          "estimated_duration_hours": 2.5,
+          "opening_hours": "09:00-18:00"
+        },
+        {
+          "name": "N Seoul Tower",
+          "type": "observation",
+          "description": "Iconic tower on Namsan Mountain with panoramic city views",
+          "entrance_fee": 15000,
+          "estimated_duration_hours": 2.0,
+          "opening_hours": "10:00-23:00"
+        },
+        {
+          "name": "Bukchon Hanok Village",
+          "type": "cultural",
+          "description": "Traditional Korean houses (hanok) preserved in historic neighborhood",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 2.0,
+          "opening_hours": "24/7"
+        }
+      ]
+    },
+    {
+      "name": "Kuala Lumpur",
+      "country": "Malaysia",
+      "description": "Multicultural capital featuring iconic Petronas Towers, diverse cuisine, vibrant markets, and mix of modern and colonial architecture.",
+      "best_time_to_visit": "May-July, December-February",
+      "local_currency": "MYR",
+      "timezone": "MYT (UTC+8)",
+      "language": "Malay, English, Mandarin, Tamil",
+      "safety_tips": [
+        "Respect Islamic customs (modest dress)",
+        "Use Grab for reliable transport",
+        "Beware of pickpockets in crowded areas",
+        "Tap water not recommended for drinking"
+      ],
+      "attractions": [
+        {
+          "name": "Petronas Twin Towers",
+          "type": "landmark",
+          "description": "Iconic 88-story twin skyscrapers with skybridge observation deck",
+          "entrance_fee": 85,
+          "estimated_duration_hours": 2.0,
+          "opening_hours": "09:00-21:00"
+        },
+        {
+          "name": "Batu Caves",
+          "type": "temple",
+          "description": "Hindu temple complex in limestone caves with 272-step colorful staircase",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 2.5,
+          "opening_hours": "06:00-21:00"
+        },
+        {
+          "name": "Central Market",
+          "type": "market",
+          "description": "Historic market showcasing Malaysian handicrafts and street food",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 2.0,
+          "opening_hours": "10:00-22:00"
+        }
+      ]
+    },
+    {
+      "name": "Paris",
+      "country": "France",
+      "description": "City of Light renowned for art, fashion, gastronomy, and iconic landmarks like the Eiffel Tower and Louvre.",
+      "best_time_to_visit": "April-June, September-October",
+      "local_currency": "EUR",
+      "timezone": "CET (UTC+1)",
+      "language": "French",
+      "safety_tips": [
+        "Watch for pickpockets near tourist sites",
+        "Learn basic French phrases (appreciated)",
+        "Validate metro tickets",
+        "Keep belongings close in crowded areas"
+      ],
+      "attractions": [
+        {
+          "name": "Eiffel Tower",
+          "type": "landmark",
+          "description": "Iconic iron lattice tower offering stunning city views",
+          "entrance_fee": 28.3,
+          "estimated_duration_hours": 2.5,
+          "opening_hours": "09:00-00:45"
+        },
+        {
+          "name": "Louvre Museum",
+          "type": "museum",
+          "description": "World's largest art museum, home to Mona Lisa and thousands of masterpieces",
+          "entrance_fee": 17,
+          "estimated_duration_hours": 4.0,
+          "opening_hours": "09:00-18:00"
+        },
+        {
+          "name": "Notre-Dame Cathedral",
+          "type": "cathedral",
+          "description": "Medieval Gothic cathedral on Île de la Cité (exterior viewing)",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 1.0,
+          "opening_hours": "Exterior accessible 24/7"
+        }
+      ]
+    },
+    {
+      "name": "New York",
+      "country": "United States",
+      "description": "The city that never sleeps, offering world-class museums, Broadway shows, diverse neighborhoods, and iconic skyline.",
+      "best_time_to_visit": "April-June, September-November",
+      "local_currency": "USD",
+      "timezone": "EST (UTC-5)",
+      "language": "English",
+      "safety_tips": [
+        "Stay aware in crowded subway stations",
+        "Use official yellow cabs or rideshares",
+        "Tipping is expected (15-20%)",
+        "Walk confidently and purposefully"
+      ],
+      "attractions": [
+        {
+          "name": "Statue of Liberty",
+          "type": "monument",
+          "description": "Iconic symbol of freedom on Liberty Island with museum and observation deck",
+          "entrance_fee": 24,
+          "estimated_duration_hours": 3.0,
+          "opening_hours": "09:30-15:30"
+        },
+        {
+          "name": "Central Park",
+          "type": "park",
+          "description": "Massive urban park offering green spaces, lakes, and cultural attractions",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 3.0,
+          "opening_hours": "06:00-01:00"
+        },
+        {
+          "name": "Times Square",
+          "type": "landmark",
+          "description": "Bright lights and bustling energy in the heart of Manhattan",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 1.0,
+          "opening_hours": "24/7"
+        }
+      ]
+    },
+    {
+      "name": "Barcelona",
+      "country": "Spain",
+      "description": "Catalan capital famous for Gaudí's architecture, Mediterranean beaches, vibrant nightlife, and rich culinary traditions.",
+      "best_time_to_visit": "May-June, September-October",
+      "local_currency": "EUR",
+      "timezone": "CET (UTC+1)",
+      "language": "Spanish, Catalan",
+      "safety_tips": [
+        "Watch for pickpockets on Las Ramblas",
+        "Learn basic Spanish/Catalan phrases",
+        "Siesta hours: shops close 14:00-17:00",
+        "Dinner typically starts after 21:00"
+      ],
+      "attractions": [
+        {
+          "name": "Sagrada Familia",
+          "type": "cathedral",
+          "description": "Gaudí's unfinished masterpiece basilica with stunning architecture",
+          "entrance_fee": 26,
+          "estimated_duration_hours": 2.5,
+          "opening_hours": "09:00-20:00"
+        },
+        {
+          "name": "Park Güell",
+          "type": "park",
+          "description": "Whimsical park designed by Gaudí with colorful mosaics and city views",
+          "entrance_fee": 10,
+          "estimated_duration_hours": 2.0,
+          "opening_hours": "08:00-20:30"
+        },
+        {
+          "name": "La Rambla",
+          "type": "street",
+          "description": "Famous tree-lined pedestrian street with street performers and cafes",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 1.5,
+          "opening_hours": "24/7"
+        }
+      ]
+    },
+    {
+      "name": "Sydney",
+      "country": "Australia",
+      "description": "Harbor city known for Opera House, stunning beaches, diverse culture, and laid-back outdoor lifestyle.",
+      "best_time_to_visit": "September-November, March-May",
+      "local_currency": "AUD",
+      "timezone": "AEDT (UTC+11)",
+      "language": "English",
+      "safety_tips": [
+        "Sun protection essential (high UV)",
+        "Swim between flags at beaches",
+        "Watch for drop bears (joke!)",
+        "Tipping not required but appreciated"
+      ],
+      "attractions": [
+        {
+          "name": "Sydney Opera House",
+          "type": "landmark",
+          "description": "Iconic sail-shaped performing arts center on Sydney Harbour",
+          "entrance_fee": 42,
+          "estimated_duration_hours": 2.0,
+          "opening_hours": "09:00-17:00"
+        },
+        {
+          "name": "Bondi Beach",
+          "type": "beach",
+          "description": "Famous golden sand beach perfect for swimming and surfing",
+          "entrance_fee": 0,
+          "estimated_duration_hours": 3.0,
+          "opening_hours": "24/7"
+        },
+        {
+          "name": "Taronga Zoo",
+          "type": "zoo",
+          "description": "Harbourside zoo with native Australian animals and city views",
+          "entrance_fee": 54,
+          "estimated_duration_hours": 4.0,
+          "opening_hours": "09:30-16:30"
+        }
+      ]
+    }
+  ]
+}

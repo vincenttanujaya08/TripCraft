@@ -1,0 +1,1228 @@
+{
+  "restaurants": [
+    {
+      "name": "Warung Biah Biah",
+      "city": "Bali",
+      "country": "Indonesia",
+      "cuisine": "Indonesian",
+      "price_range": "$",
+      "estimated_cost_per_person": 50000,
+      "rating": 4.5,
+      "specialties": [
+        "nasi campur",
+        "sate lilit",
+        "lawar"
+      ],
+      "location": "Seminyak",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Authentic Balinese food at local prices",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Locavore",
+      "city": "Bali",
+      "country": "Indonesia",
+      "cuisine": "Modern Indonesian",
+      "price_range": "$$$$",
+      "estimated_cost_per_person": 1200000,
+      "rating": 4.8,
+      "specialties": [
+        "tasting menu",
+        "local ingredients",
+        "molecular gastronomy"
+      ],
+      "location": "Ubud",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Award-winning fine dining showcasing Indonesian ingredients",
+      "average_cost_per_person": 600000
+    },
+    {
+      "name": "Sisterfields",
+      "city": "Bali",
+      "country": "Indonesia",
+      "cuisine": "Cafe",
+      "price_range": "$$",
+      "estimated_cost_per_person": 150000,
+      "rating": 4.4,
+      "specialties": [
+        "breakfast",
+        "brunch",
+        "coffee"
+      ],
+      "location": "Seminyak",
+      "meal_type": [
+        "breakfast",
+        "lunch"
+      ],
+      "description": "Trendy all-day breakfast spot with great coffee",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Naughty Nuri's",
+      "city": "Bali",
+      "country": "Indonesia",
+      "cuisine": "BBQ",
+      "price_range": "$$",
+      "estimated_cost_per_person": 200000,
+      "rating": 4.6,
+      "specialties": [
+        "ribs",
+        "bbq",
+        "martinis"
+      ],
+      "location": "Ubud",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Famous for their BBQ ribs and strong martinis",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Mama San",
+      "city": "Bali",
+      "country": "Indonesia",
+      "cuisine": "Asian Fusion",
+      "price_range": "$$$",
+      "estimated_cost_per_person": 400000,
+      "rating": 4.5,
+      "specialties": [
+        "dim sum",
+        "asian tapas",
+        "cocktails"
+      ],
+      "location": "Seminyak",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Stylish restaurant serving pan-Asian cuisine",
+      "average_cost_per_person": 300000
+    },
+    {
+      "name": "Warung D'Sawah",
+      "city": "Bali",
+      "country": "Indonesia",
+      "cuisine": "Indonesian",
+      "price_range": "$",
+      "estimated_cost_per_person": 40000,
+      "rating": 4.3,
+      "specialties": [
+        "mie goreng",
+        "nasi goreng",
+        "sate"
+      ],
+      "location": "Ubud",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Budget-friendly warung with rice field views",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Ichiran Ramen",
+      "city": "Tokyo",
+      "country": "Japan",
+      "cuisine": "Ramen",
+      "price_range": "$",
+      "estimated_cost_per_person": 1000,
+      "rating": 4.6,
+      "specialties": [
+        "tonkotsu ramen",
+        "solo dining booths"
+      ],
+      "location": "Shibuya",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Famous ramen chain with private eating booths",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Sushi Dai",
+      "city": "Tokyo",
+      "country": "Japan",
+      "cuisine": "Sushi",
+      "price_range": "$$",
+      "estimated_cost_per_person": 4000,
+      "rating": 4.7,
+      "specialties": [
+        "omakase",
+        "fresh fish",
+        "sushi"
+      ],
+      "location": "Tsukiji",
+      "meal_type": [
+        "breakfast",
+        "lunch"
+      ],
+      "description": "Worth the wait for incredibly fresh sushi",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Gonpachi Nishi-Azabu",
+      "city": "Tokyo",
+      "country": "Japan",
+      "cuisine": "Japanese",
+      "price_range": "$$$",
+      "estimated_cost_per_person": 5000,
+      "rating": 4.4,
+      "specialties": [
+        "yakitori",
+        "soba",
+        "atmosphere"
+      ],
+      "location": "Roppongi",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Inspiration for Kill Bill restaurant scene",
+      "average_cost_per_person": 300000
+    },
+    {
+      "name": "Narisawa",
+      "city": "Tokyo",
+      "country": "Japan",
+      "cuisine": "French-Japanese",
+      "price_range": "$$$$",
+      "estimated_cost_per_person": 30000,
+      "rating": 4.9,
+      "specialties": [
+        "innovative cuisine",
+        "seasonal menu",
+        "michelin stars"
+      ],
+      "location": "Aoyama",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Two Michelin star innovative cuisine",
+      "average_cost_per_person": 600000
+    },
+    {
+      "name": "Harajuku Gyoza Lou",
+      "city": "Tokyo",
+      "country": "Japan",
+      "cuisine": "Gyoza",
+      "price_range": "$",
+      "estimated_cost_per_person": 800,
+      "rating": 4.3,
+      "specialties": [
+        "gyoza",
+        "quick service"
+      ],
+      "location": "Harajuku",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Small shop serving delicious pan-fried dumplings",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Bills Omotesando",
+      "city": "Tokyo",
+      "country": "Japan",
+      "cuisine": "Cafe",
+      "price_range": "$$",
+      "estimated_cost_per_person": 2500,
+      "rating": 4.2,
+      "specialties": [
+        "ricotta pancakes",
+        "breakfast",
+        "coffee"
+      ],
+      "location": "Omotesando",
+      "meal_type": [
+        "breakfast",
+        "lunch"
+      ],
+      "description": "Famous Australian breakfast spot",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Jay Fai",
+      "city": "Bangkok",
+      "country": "Thailand",
+      "cuisine": "Thai",
+      "price_range": "$$$",
+      "estimated_cost_per_person": 1000,
+      "rating": 4.7,
+      "specialties": [
+        "crab omelette",
+        "drunken noodles",
+        "michelin star"
+      ],
+      "location": "Old Town",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Michelin-starred street food, book ahead",
+      "average_cost_per_person": 300000
+    },
+    {
+      "name": "Thip Samai",
+      "city": "Bangkok",
+      "country": "Thailand",
+      "cuisine": "Thai",
+      "price_range": "$",
+      "estimated_cost_per_person": 200,
+      "rating": 4.5,
+      "specialties": [
+        "pad thai",
+        "orange juice"
+      ],
+      "location": "Phra Nakhon",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Best pad thai in Bangkok since 1966",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Somtum Der",
+      "city": "Bangkok",
+      "country": "Thailand",
+      "cuisine": "Isaan",
+      "price_range": "$$",
+      "estimated_cost_per_person": 400,
+      "rating": 4.6,
+      "specialties": [
+        "som tam",
+        "grilled chicken",
+        "northeastern thai"
+      ],
+      "location": "Sala Daeng",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Authentic northeastern Thai cuisine",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Gaggan Anand",
+      "city": "Bangkok",
+      "country": "Thailand",
+      "cuisine": "Progressive Indian",
+      "price_range": "$$$$",
+      "estimated_cost_per_person": 8000,
+      "rating": 4.9,
+      "specialties": [
+        "emoji menu",
+        "molecular gastronomy",
+        "tasting menu"
+      ],
+      "location": "Langsuan",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Multi-award winning progressive Indian cuisine",
+      "average_cost_per_person": 600000
+    },
+    {
+      "name": "Or Tor Kor Market",
+      "city": "Bangkok",
+      "country": "Thailand",
+      "cuisine": "Thai Market",
+      "price_range": "$",
+      "estimated_cost_per_person": 150,
+      "rating": 4.4,
+      "specialties": [
+        "fresh fruit",
+        "prepared foods",
+        "snacks"
+      ],
+      "location": "Chatuchak",
+      "meal_type": [
+        "breakfast",
+        "lunch"
+      ],
+      "description": "Premium market with amazing food stalls",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "After You Dessert Cafe",
+      "city": "Bangkok",
+      "country": "Thailand",
+      "cuisine": "Dessert",
+      "price_range": "$$",
+      "estimated_cost_per_person": 300,
+      "rating": 4.3,
+      "specialties": [
+        "shibuya toast",
+        "kakigori",
+        "desserts"
+      ],
+      "location": "Various locations",
+      "meal_type": [
+        "cafe"
+      ],
+      "description": "Popular dessert chain with Instagram-worthy treats",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Maxwell Food Centre",
+      "city": "Singapore",
+      "country": "Singapore",
+      "cuisine": "Hawker",
+      "price_range": "$",
+      "estimated_cost_per_person": 8,
+      "rating": 4.5,
+      "specialties": [
+        "tian tian chicken rice",
+        "char kway teow",
+        "laksa"
+      ],
+      "location": "Chinatown",
+      "meal_type": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "description": "Famous hawker center with Michelin-starred stalls",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Lau Pa Sat",
+      "city": "Singapore",
+      "country": "Singapore",
+      "cuisine": "Hawker",
+      "price_range": "$",
+      "estimated_cost_per_person": 10,
+      "rating": 4.3,
+      "specialties": [
+        "satay street",
+        "various cuisines"
+      ],
+      "location": "CBD",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Historic hawker center with satay street at night",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Burnt Ends",
+      "city": "Singapore",
+      "country": "Singapore",
+      "cuisine": "Modern BBQ",
+      "price_range": "$$$$",
+      "estimated_cost_per_person": 150,
+      "rating": 4.8,
+      "specialties": [
+        "wood-fired",
+        "australian bbq",
+        "michelin star"
+      ],
+      "location": "Chinatown",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Michelin-starred modern Australian BBQ",
+      "average_cost_per_person": 600000
+    },
+    {
+      "name": "328 Katong Laksa",
+      "city": "Singapore",
+      "country": "Singapore",
+      "cuisine": "Singaporean",
+      "price_range": "$",
+      "estimated_cost_per_person": 7,
+      "rating": 4.4,
+      "specialties": [
+        "laksa",
+        "no spoon needed"
+      ],
+      "location": "Katong",
+      "meal_type": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "description": "Famous laksa served without spoon",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "PS.Cafe",
+      "city": "Singapore",
+      "country": "Singapore",
+      "cuisine": "Cafe",
+      "price_range": "$$",
+      "estimated_cost_per_person": 35,
+      "rating": 4.2,
+      "specialties": [
+        "truffle fries",
+        "brunch",
+        "desserts"
+      ],
+      "location": "Various",
+      "meal_type": [
+        "breakfast",
+        "lunch",
+        "cafe"
+      ],
+      "description": "Trendy cafe with beautiful garden settings",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Jumbo Seafood",
+      "city": "Singapore",
+      "country": "Singapore",
+      "cuisine": "Seafood",
+      "price_range": "$$$",
+      "estimated_cost_per_person": 60,
+      "rating": 4.5,
+      "specialties": [
+        "chili crab",
+        "black pepper crab"
+      ],
+      "location": "Various",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Famous for Singapore's signature chili crab",
+      "average_cost_per_person": 300000
+    },
+    {
+      "name": "Gwangjang Market",
+      "city": "Seoul",
+      "country": "South Korea",
+      "cuisine": "Korean Market",
+      "price_range": "$",
+      "estimated_cost_per_person": 15000,
+      "rating": 4.6,
+      "specialties": [
+        "bindaetteok",
+        "mayak gimbap",
+        "tteokbokki"
+      ],
+      "location": "Jongno-gu",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Historic market featured in Netflix Street Food",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Myeongdong Kyoja",
+      "city": "Seoul",
+      "country": "South Korea",
+      "cuisine": "Korean",
+      "price_range": "$",
+      "estimated_cost_per_person": 12000,
+      "rating": 4.5,
+      "specialties": [
+        "kalguksu",
+        "mandu",
+        "knife-cut noodles"
+      ],
+      "location": "Myeongdong",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Famous for handmade knife-cut noodles since 1966",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Jungsik",
+      "city": "Seoul",
+      "country": "South Korea",
+      "cuisine": "Modern Korean",
+      "price_range": "$$$$",
+      "estimated_cost_per_person": 180000,
+      "rating": 4.8,
+      "specialties": [
+        "korean fusion",
+        "tasting menu",
+        "michelin stars"
+      ],
+      "location": "Gangnam",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Two Michelin star contemporary Korean cuisine",
+      "average_cost_per_person": 600000
+    },
+    {
+      "name": "Tosokchon",
+      "city": "Seoul",
+      "country": "South Korea",
+      "cuisine": "Korean",
+      "price_range": "$$",
+      "estimated_cost_per_person": 18000,
+      "rating": 4.4,
+      "specialties": [
+        "samgyetang",
+        "ginseng chicken soup"
+      ],
+      "location": "Jongno-gu",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Famous ginseng chicken soup restaurant",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Cafe Onion Anguk",
+      "city": "Seoul",
+      "country": "South Korea",
+      "cuisine": "Cafe",
+      "price_range": "$$",
+      "estimated_cost_per_person": 8000,
+      "rating": 4.3,
+      "specialties": [
+        "pastries",
+        "coffee",
+        "architecture"
+      ],
+      "location": "Anguk",
+      "meal_type": [
+        "breakfast",
+        "cafe"
+      ],
+      "description": "Trendy cafe in renovated traditional building",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Maple Tree House",
+      "city": "Seoul",
+      "country": "South Korea",
+      "cuisine": "Korean BBQ",
+      "price_range": "$$$",
+      "estimated_cost_per_person": 45000,
+      "rating": 4.5,
+      "specialties": [
+        "premium beef",
+        "korean bbq",
+        "galbi"
+      ],
+      "location": "Itaewon",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "High-quality Korean BBQ with English menu",
+      "average_cost_per_person": 300000
+    },
+    {
+      "name": "Jalan Alor Food Street",
+      "city": "Kuala Lumpur",
+      "country": "Malaysia",
+      "cuisine": "Malaysian Street Food",
+      "price_range": "$",
+      "estimated_cost_per_person": 30,
+      "rating": 4.4,
+      "specialties": [
+        "char kway teow",
+        "satay",
+        "various"
+      ],
+      "location": "Bukit Bintang",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Famous street food paradise",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Restoran Yut Kee",
+      "city": "Kuala Lumpur",
+      "country": "Malaysia",
+      "cuisine": "Hainanese",
+      "price_range": "$",
+      "estimated_cost_per_person": 25,
+      "rating": 4.5,
+      "specialties": [
+        "roti babi",
+        "marble cake",
+        "kaya toast"
+      ],
+      "location": "Dang Wangi",
+      "meal_type": [
+        "breakfast",
+        "lunch"
+      ],
+      "description": "Historic kopitiam serving since 1928",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Bijan Bar & Restaurant",
+      "city": "Kuala Lumpur",
+      "country": "Malaysia",
+      "cuisine": "Malay",
+      "price_range": "$$$",
+      "estimated_cost_per_person": 120,
+      "rating": 4.6,
+      "specialties": [
+        "refined malay",
+        "beef rendang",
+        "elegant setting"
+      ],
+      "location": "KLCC",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Upscale traditional Malay cuisine",
+      "average_cost_per_person": 300000
+    },
+    {
+      "name": "Village Park Restaurant",
+      "city": "Kuala Lumpur",
+      "country": "Malaysia",
+      "cuisine": "Malaysian",
+      "price_range": "$",
+      "estimated_cost_per_person": 18,
+      "rating": 4.4,
+      "specialties": [
+        "nasi lemak",
+        "fried chicken"
+      ],
+      "location": "Petaling Jaya",
+      "meal_type": [
+        "breakfast",
+        "lunch"
+      ],
+      "description": "Best nasi lemak in KL, always packed",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Feeka Coffee Roasters",
+      "city": "Kuala Lumpur",
+      "country": "Malaysia",
+      "cuisine": "Cafe",
+      "price_range": "$$",
+      "estimated_cost_per_person": 35,
+      "rating": 4.3,
+      "specialties": [
+        "coffee",
+        "brunch",
+        "cakes"
+      ],
+      "location": "Chinatown",
+      "meal_type": [
+        "breakfast",
+        "lunch",
+        "cafe"
+      ],
+      "description": "Hipster cafe with great coffee and food",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Old China Cafe",
+      "city": "Kuala Lumpur",
+      "country": "Malaysia",
+      "cuisine": "Nyonya",
+      "price_range": "$$",
+      "estimated_cost_per_person": 40,
+      "rating": 4.2,
+      "specialties": [
+        "nyonya laksa",
+        "curry kapitan",
+        "heritage setting"
+      ],
+      "location": "Chinatown",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Authentic Nyonya food in historic guildhall",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "L'Ambroisie",
+      "city": "Paris",
+      "country": "France",
+      "cuisine": "French",
+      "price_range": "$$$$",
+      "estimated_cost_per_person": 300,
+      "rating": 4.9,
+      "specialties": [
+        "haute cuisine",
+        "classic french",
+        "3 michelin stars"
+      ],
+      "location": "Le Marais",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Three Michelin star temple of French cuisine",
+      "average_cost_per_person": 600000
+    },
+    {
+      "name": "L'As du Fallafel",
+      "city": "Paris",
+      "country": "France",
+      "cuisine": "Middle Eastern",
+      "price_range": "$",
+      "estimated_cost_per_person": 8,
+      "rating": 4.5,
+      "specialties": [
+        "falafel",
+        "shawarma"
+      ],
+      "location": "Le Marais",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Best falafel in Paris, always a line",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Breizh Cafe",
+      "city": "Paris",
+      "country": "France",
+      "cuisine": "Creperie",
+      "price_range": "$$",
+      "estimated_cost_per_person": 20,
+      "rating": 4.6,
+      "specialties": [
+        "galettes",
+        "crepes",
+        "cider"
+      ],
+      "location": "Le Marais",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Authentic Breton crepes and galettes",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Bouillon Chartier",
+      "city": "Paris",
+      "country": "France",
+      "cuisine": "French",
+      "price_range": "$",
+      "estimated_cost_per_person": 15,
+      "rating": 4.3,
+      "specialties": [
+        "traditional french",
+        "historic setting"
+      ],
+      "location": "9th arrondissement",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Historic workers' restaurant with affordable classics",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Angelina Paris",
+      "city": "Paris",
+      "country": "France",
+      "cuisine": "Patisserie",
+      "price_range": "$$",
+      "estimated_cost_per_person": 18,
+      "rating": 4.4,
+      "specialties": [
+        "hot chocolate",
+        "mont blanc",
+        "pastries"
+      ],
+      "location": "1st arrondissement",
+      "meal_type": [
+        "breakfast",
+        "cafe"
+      ],
+      "description": "Famous for thick hot chocolate since 1903",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Septime",
+      "city": "Paris",
+      "country": "France",
+      "cuisine": "Contemporary",
+      "price_range": "$$$",
+      "estimated_cost_per_person": 90,
+      "rating": 4.7,
+      "specialties": [
+        "seasonal menu",
+        "natural wine",
+        "michelin star"
+      ],
+      "location": "11th arrondissement",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "One Michelin star, book months ahead",
+      "average_cost_per_person": 300000
+    },
+    {
+      "name": "Roscioli",
+      "city": "Rome",
+      "country": "Italy",
+      "cuisine": "Italian",
+      "price_range": "$$$",
+      "estimated_cost_per_person": 50,
+      "rating": 4.7,
+      "specialties": [
+        "carbonara",
+        "cacio e pepe",
+        "salumi"
+      ],
+      "location": "Campo de' Fiori",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Famous bakery-restaurant with exceptional pasta",
+      "average_cost_per_person": 300000
+    },
+    {
+      "name": "Pizzarium",
+      "city": "Rome",
+      "country": "Italy",
+      "cuisine": "Pizza",
+      "price_range": "$",
+      "estimated_cost_per_person": 10,
+      "rating": 4.6,
+      "specialties": [
+        "pizza al taglio",
+        "creative toppings"
+      ],
+      "location": "Prati",
+      "meal_type": [
+        "lunch"
+      ],
+      "description": "Best pizza by the slice, near Vatican",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Trattoria Da Enzo",
+      "city": "Rome",
+      "country": "Italy",
+      "cuisine": "Roman",
+      "price_range": "$$",
+      "estimated_cost_per_person": 25,
+      "rating": 4.5,
+      "specialties": [
+        "amatriciana",
+        "roman classics",
+        "no reservations"
+      ],
+      "location": "Trastevere",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Authentic Roman trattoria, arrive early",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "La Pergola",
+      "city": "Rome",
+      "country": "Italy",
+      "cuisine": "Fine Dining",
+      "price_range": "$$$$",
+      "estimated_cost_per_person": 300,
+      "rating": 4.9,
+      "specialties": [
+        "3 michelin stars",
+        "tasting menu",
+        "views"
+      ],
+      "location": "Monte Mario",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Rome's only 3 Michelin star restaurant",
+      "average_cost_per_person": 600000
+    },
+    {
+      "name": "Gelateria del Teatro",
+      "city": "Rome",
+      "country": "Italy",
+      "cuisine": "Gelato",
+      "price_range": "$",
+      "estimated_cost_per_person": 5,
+      "rating": 4.6,
+      "specialties": [
+        "artisan gelato",
+        "unique flavors"
+      ],
+      "location": "Centro Storico",
+      "meal_type": [
+        "cafe"
+      ],
+      "description": "Creative gelato flavors made fresh daily",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Supplì Roma",
+      "city": "Rome",
+      "country": "Italy",
+      "cuisine": "Street Food",
+      "price_range": "$",
+      "estimated_cost_per_person": 3,
+      "rating": 4.4,
+      "specialties": [
+        "supplì",
+        "arancini"
+      ],
+      "location": "Various",
+      "meal_type": [
+        "lunch"
+      ],
+      "description": "Best supplì (fried rice balls) in Rome",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Cervecería Catalana",
+      "city": "Barcelona",
+      "country": "Spain",
+      "cuisine": "Tapas",
+      "price_range": "$$",
+      "estimated_cost_per_person": 25,
+      "rating": 4.5,
+      "specialties": [
+        "tapas",
+        "seafood",
+        "croquetas"
+      ],
+      "location": "Eixample",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Always-packed tapas bar, worth the wait",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Tickets Bar",
+      "city": "Barcelona",
+      "country": "Spain",
+      "cuisine": "Tapas",
+      "price_range": "$$$",
+      "estimated_cost_per_person": 80,
+      "rating": 4.8,
+      "specialties": [
+        "creative tapas",
+        "molecular gastronomy"
+      ],
+      "location": "Parallel",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Ferran Adrià's playful tapas bar",
+      "average_cost_per_person": 300000
+    },
+    {
+      "name": "La Boqueria Market",
+      "city": "Barcelona",
+      "country": "Spain",
+      "cuisine": "Market",
+      "price_range": "$",
+      "estimated_cost_per_person": 15,
+      "rating": 4.6,
+      "specialties": [
+        "fresh produce",
+        "seafood",
+        "juice bars"
+      ],
+      "location": "La Rambla",
+      "meal_type": [
+        "breakfast",
+        "lunch"
+      ],
+      "description": "Famous food market with incredible variety",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Cal Pep",
+      "city": "Barcelona",
+      "country": "Spain",
+      "cuisine": "Seafood",
+      "price_range": "$$",
+      "estimated_cost_per_person": 40,
+      "rating": 4.6,
+      "specialties": [
+        "seafood",
+        "clams",
+        "fried artichokes"
+      ],
+      "location": "Born",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Legendary seafood counter, no reservations",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Granja M. Viader",
+      "city": "Barcelona",
+      "country": "Spain",
+      "cuisine": "Cafe",
+      "price_range": "$",
+      "estimated_cost_per_person": 8,
+      "rating": 4.4,
+      "specialties": [
+        "churros",
+        "hot chocolate",
+        "historic"
+      ],
+      "location": "Raval",
+      "meal_type": [
+        "breakfast"
+      ],
+      "description": "Historic cafe serving since 1870",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Brunch & Cake",
+      "city": "Barcelona",
+      "country": "Spain",
+      "cuisine": "Brunch",
+      "price_range": "$$",
+      "estimated_cost_per_person": 18,
+      "rating": 4.3,
+      "specialties": [
+        "instagrammable food",
+        "creative brunch"
+      ],
+      "location": "Various",
+      "meal_type": [
+        "breakfast",
+        "lunch"
+      ],
+      "description": "Instagram-famous brunch spot",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Xi'an Famous Foods",
+      "city": "New York",
+      "country": "United States",
+      "cuisine": "Chinese",
+      "price_range": "$",
+      "estimated_cost_per_person": 12,
+      "rating": 4.5,
+      "specialties": [
+        "hand-pulled noodles",
+        "spicy cumin lamb"
+      ],
+      "location": "Various",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Authentic Xi'an street food",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Katz's Delicatessen",
+      "city": "New York",
+      "country": "United States",
+      "cuisine": "Deli",
+      "price_range": "$$",
+      "estimated_cost_per_person": 25,
+      "rating": 4.6,
+      "specialties": [
+        "pastrami sandwich",
+        "classic deli"
+      ],
+      "location": "Lower East Side",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Iconic NYC deli since 1888",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Le Bernardin",
+      "city": "New York",
+      "country": "United States",
+      "cuisine": "French Seafood",
+      "price_range": "$$$$",
+      "estimated_cost_per_person": 200,
+      "rating": 4.9,
+      "specialties": [
+        "seafood",
+        "3 michelin stars"
+      ],
+      "location": "Midtown",
+      "meal_type": [
+        "dinner"
+      ],
+      "description": "Three Michelin star seafood temple",
+      "average_cost_per_person": 600000
+    },
+    {
+      "name": "Joe's Pizza",
+      "city": "New York",
+      "country": "United States",
+      "cuisine": "Pizza",
+      "price_range": "$",
+      "estimated_cost_per_person": 5,
+      "rating": 4.4,
+      "specialties": [
+        "ny-style pizza",
+        "slice"
+      ],
+      "location": "Greenwich Village",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "Classic NYC pizza slice",
+      "average_cost_per_person": 50000
+    },
+    {
+      "name": "Russ & Daughters",
+      "city": "New York",
+      "country": "United States",
+      "cuisine": "Jewish",
+      "price_range": "$$",
+      "estimated_cost_per_person": 20,
+      "rating": 4.5,
+      "specialties": [
+        "smoked fish",
+        "bagels",
+        "lox"
+      ],
+      "location": "Lower East Side",
+      "meal_type": [
+        "breakfast",
+        "lunch"
+      ],
+      "description": "Iconic appetizing shop since 1914",
+      "average_cost_per_person": 150000
+    },
+    {
+      "name": "Momofuku Noodle Bar",
+      "city": "New York",
+      "country": "United States",
+      "cuisine": "Asian",
+      "price_range": "$$",
+      "estimated_cost_per_person": 30,
+      "rating": 4.4,
+      "specialties": [
+        "ramen",
+        "pork buns"
+      ],
+      "location": "East Village",
+      "meal_type": [
+        "lunch",
+        "dinner"
+      ],
+      "description": "David Chang's famous ramen spot",
+      "average_cost_per_person": 150000
+    }
+  ]
+}

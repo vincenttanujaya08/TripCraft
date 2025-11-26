@@ -1,0 +1,231 @@
+"""
+Verifier Agent - Validates and checks trip plan quality
+"""
+import logging
+from datetime import datetime
+from typing import List, Dict, Any
+from models.schemas import (
+    TripRequest,
+    VerificationOutput,
+    ValidationIssue,
+    DestinationOutput,
+    HotelOutput,
+    DiningOutput,
+    FlightOutput,
+    BudgetOutput,
+    ItineraryOutput,
+)
+from agents.base_agent import BaseAgent
+from data_sources.smart_retriever import SmartRetriever
+
+logger = logging.getLogger(f"agent.Verifier")
+
+
+class VerifierAgent(BaseAgent):
+    """Agent responsible for verifying trip plan quality and completeness"""
+    
+    def __init__(self, retriever: SmartRetriever):
+        super().__init__("Verifier", retriever)
+        
+    async def execute(
+        self,
+        request: TripRequest,
+        destination_output: DestinationOutput = None,
+        hotel_output: HotelOutput = None,
+        dining_output: DiningOutput = None,
+        flight_output: FlightOutput = None,
+        budget_output: BudgetOutput = None,
+        itinerary_output: ItineraryOutput = None
+    ) -> VerificationOutput:
+        """
+        Verify and validate the complete trip plan
+        
+        Args:
+            request: Trip planning request
+            destination_output: Output from destination agent
+            hotel_output: Output from hotel agent
+            dining_output: Output from dining agent
+            flight_output: Output from flight agent
+            budget_output: Output from budget agent
+            itinerary_output: Output from itinerary agent
+            
+        Returns:
+            VerificationOutput with validation results
+        """
+        self.logger.info("🚀 Verifier agent starting...")
+        start_time = datetime.now()
+        
+        try:
+            issues: List[ValidationIssue] = []
+            
+            # Check destination
+            if not destination_output or not destination_output.destination:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    component="destination",
+                    message="No destination information available",
+                    suggestion="Ensure destination agent completed successfully"
+                ))
+            elif not destination_output.destination.attractions:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    component="destination",
+                    message="No attractions found for destination",
+                    suggestion="Consider adding popular attractions manually"
+                ))
+            
+            # Check hotels
+            if not hotel_output or not hotel_output.hotels:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    component="accommodation",
+                    message="No hotel options available",
+                    suggestion="Check hotel availability for the destination and dates"
+                ))
+            elif not hotel_output.recommended_hotel:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    component="accommodation",
+                    message="No recommended hotel selected",
+                    suggestion="Review available hotels and select one"
+                ))
+            
+            # Check dining
+            if not dining_output or not dining_output.restaurants:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    component="dining",
+                    message="No restaurant recommendations available",
+                    suggestion="Search for local restaurants manually"
+                ))
+            
+            # Check flights
+            if not flight_output or not flight_output.outbound_flights:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    component="transportation",
+                    message="No outbound flight options available",
+                    suggestion="Check flight availability for the route and dates"
+                ))
+            if flight_output and not flight_output.return_flights:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    component="transportation",
+                    message="No return flight options available",
+                    suggestion="Check return flight availability"
+                ))
+            
+            # Check budget
+            if not budget_output:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    component="budget",
+                    message="Budget analysis not available",
+                    suggestion="Calculate budget breakdown manually"
+                ))
+            elif budget_output.is_over_budget:
+                over_amount = (budget_output.breakdown.accommodation +
+                             budget_output.breakdown.dining +
+                             budget_output.breakdown.flights +
+                             budget_output.breakdown.attractions +
+                             budget_output.breakdown.transportation +
+                             budget_output.breakdown.miscellaneous) - request.budget
+                issues.append(ValidationIssue(
+                    severity="error",
+                    component="budget",
+                    message=f"Budget exceeded by Rp {over_amount:,.0f}",
+                    suggestion="Consider reducing accommodation costs or trip duration"
+                ))
+            
+            # Check itinerary
+            if not itinerary_output or not itinerary_output.days:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    component="itinerary",
+                    message="No itinerary generated",
+                    suggestion="Create a daily schedule manually"
+                ))
+            elif itinerary_output:
+                # Check for empty days
+                empty_days = [day for day in itinerary_output.days if not day.activities]
+                if empty_days:
+                    issues.append(ValidationIssue(
+                        severity="warning",
+                        component="itinerary",
+                        message=f"{len(empty_days)} day(s) have no planned activities",
+                        suggestion="Add activities to fill empty days"
+                    ))
+            
+            # Check data quality across all components
+            low_confidence_components = []
+            if destination_output and destination_output.confidence < 0.5:
+                low_confidence_components.append("destination")
+            if hotel_output and hotel_output.confidence < 0.5:
+                low_confidence_components.append("accommodation")
+            if dining_output and dining_output.confidence < 0.5:
+                low_confidence_components.append("dining")
+            if flight_output and flight_output.confidence < 0.5:
+                low_confidence_components.append("flights")
+            
+            if low_confidence_components:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    component="data_quality",
+                    message=f"Low confidence data in: {', '.join(low_confidence_components)}",
+                    suggestion="Verify information from multiple sources"
+                ))
+            
+            # Determine if plan is valid
+            critical_issues = [i for i in issues if i.severity == "error"]
+            is_valid = len(critical_issues) == 0
+            
+            # Calculate overall quality score
+            quality_score = 100.0
+            for issue in issues:
+                if issue.severity == "error":
+                    quality_score -= 20.0
+                elif issue.severity == "warning":
+                    quality_score -= 5.0
+            quality_score = max(0.0, quality_score)
+            
+            # Calculate confidence based on completeness
+            components_present = sum([
+                1 if destination_output else 0,
+                1 if hotel_output and hotel_output.hotels else 0,
+                1 if dining_output and dining_output.restaurants else 0,
+                1 if flight_output and flight_output.outbound_flights else 0,
+                1 if budget_output else 0,
+                1 if itinerary_output and itinerary_output.days else 0
+            ])
+            
+            confidence = self._calculate_confidence(
+                source="seed",
+                data_quality_score=(components_present / 6.0) * 100
+            )
+            
+            duration = (datetime.now() - start_time).total_seconds() * 1000
+            self.logger.info(
+                f"✓ Verifier completed in {duration:.0f}ms "
+                f"(valid: {is_valid}, issues: {len(issues)}, confidence: {confidence*100:.0f}%)"
+            )
+            
+            # FIX: Add summary field
+            if is_valid:
+                summary = f"Trip plan is valid with {len(issues)} minor warnings"
+            else:
+                summary = f"Found {len(critical_issues)} critical issues that must be resolved"
+            
+            return VerificationOutput(
+                is_valid=is_valid,
+                issues=issues,
+                quality_score=quality_score,
+                summary=summary,
+                metadata=self._create_metadata("seed", duration),
+                data_source="seed",
+                confidence=confidence
+            )
+            
+        except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds() * 1000
+            self.logger.error(f"✗ Verifier failed after {duration:.0f}ms: {e}")
+            raise
