@@ -38,7 +38,7 @@ class BaseAgent(ABC):
             (agent_output, metadata) where metadata includes:
                 - execution_time_ms: Time taken to execute
                 - data_source: Where data came from (api/seed/llm_fallback)
-                - confidence: Confidence score (0.0-1.0)
+                - confidence: Confidence score (0-100)
                 - warnings: List of warning messages
         """
         pass
@@ -70,14 +70,14 @@ class BaseAgent(ABC):
             if "data_source" not in metadata:
                 metadata["data_source"] = "unknown"
             if "confidence" not in metadata:
-                metadata["confidence"] = 0.50  # Default medium confidence (0-1 scale)
+                metadata["confidence"] = 50  # Default medium confidence
             if "warnings" not in metadata:
                 metadata["warnings"] = []
             
             self.logger.info(
                 f"✓ {self.name} completed in {execution_time_ms}ms "
                 f"(source: {metadata['data_source']}, "
-                f"confidence: {metadata['confidence']:.0%})"
+                f"confidence: {metadata['confidence']})"
             )
             
             return output, metadata
@@ -90,7 +90,7 @@ class BaseAgent(ABC):
             metadata = {
                 "execution_time_ms": execution_time_ms,
                 "data_source": "error",
-                "confidence": 0.0,
+                "confidence": 0,
                 "warnings": [f"Agent execution failed: {str(e)}"],
                 "error": str(e)
             }
@@ -101,7 +101,7 @@ class BaseAgent(ABC):
         self,
         data_source: str,
         data_quality_score: int = 100
-    ) -> float:
+    ) -> int:
         """
         Calculate confidence score based on data source and quality
         
@@ -110,22 +110,22 @@ class BaseAgent(ABC):
             data_quality_score: Additional quality adjustment (0-100)
             
         Returns:
-            Confidence score (0.0-1.0)
+            Confidence score (0-100)
         """
-        # Base confidence by source (0-1 scale)
+        # Base confidence by source
         base_confidence = {
-            "api": 0.90,
-            "seed": 0.85,
-            "llm_fallback": 0.70,
-            "unknown": 0.50
+            "api": 90,
+            "seed": 85,
+            "llm_fallback": 70,
+            "unknown": 50
         }
         
-        base = base_confidence.get(data_source, 0.50)
+        base = base_confidence.get(data_source, 50)
         
         # Adjust by data quality
-        adjusted = base * (data_quality_score / 100.0)
+        adjusted = int(base * (data_quality_score / 100))
         
-        return max(0.0, min(1.0, adjusted))
+        return max(0, min(100, adjusted))
     
     def _add_warning(self, warnings: list, message: str, severity: str = "info"):
         """

@@ -1,10 +1,11 @@
 """
 DiningAgent - Finds restaurant recommendations based on preferences
+FIXED: Date handling for date objects instead of strings
 """
 
 from typing import Dict, Optional, List
-from datetime import datetime
-from .base_agent import BaseAgent
+from datetime import datetime, date
+from agents.base_agent import BaseAgent
 from models.schemas import TripRequest, DiningOutput, Restaurant
 from data_sources import get_smart_retriever
 
@@ -34,7 +35,7 @@ class DiningAgent(BaseAgent):
         
         warnings = []
         
-        # Calculate trip days
+        # Calculate trip days - FIX: Handle date objects directly
         days = self._calculate_days(request.start_date, request.end_date)
         
         if days <= 0:
@@ -77,14 +78,14 @@ class DiningAgent(BaseAgent):
                 restaurant = Restaurant(
                     name=rest_data.get("name", "Unknown Restaurant"),
                     cuisine=rest_data.get("cuisine", "International"),
+                    description=rest_data.get("description", ""),
                     price_range=rest_data.get("price_range", "$$"),
-                    estimated_cost_per_person=rest_data.get("estimated_cost_per_person", 0),
+                    average_cost_per_person=rest_data.get("average_cost_per_person", 150000),
                     rating=rest_data.get("rating", 0.0),
                     specialties=rest_data.get("specialties", []),
-                    location=rest_data.get("location", request.destination),
-                    meal_type=rest_data.get("meal_type", ["lunch", "dinner"]),
-                    description=rest_data.get("description", ""),
-                    image_url=rest_data.get("image_url")  # Optional
+                    dietary_options=rest_data.get("dietary_options", []),
+                    address=rest_data.get("location") or rest_data.get("address"),
+                    opening_hours=rest_data.get("opening_hours")
                 )
                 restaurants.append(restaurant)
             
@@ -94,17 +95,18 @@ class DiningAgent(BaseAgent):
         # Diversify restaurant selection
         restaurants = self._diversify_restaurants(restaurants)
         
-        # Calculate estimated daily food cost
-        estimated_daily_cost = self._estimate_daily_food_cost(
+        # Calculate estimated total cost for the entire trip
+        estimated_total_cost = self._estimate_total_trip_cost(
             restaurants,
-            request.travelers
+            request.travelers,
+            days
         )
         
         # Check budget
-        if estimated_daily_cost > daily_food_budget * 1.2:
+        if estimated_total_cost > food_budget_total * 1.2:
             self._add_warning(
                 warnings,
-                f"Estimated daily food cost (${estimated_daily_cost:.0f}) exceeds budget (${daily_food_budget:.0f})",
+                f"Estimated food cost (Rp {estimated_total_cost:,.0f}) exceeds budget (Rp {food_budget_total:,.0f})",
                 "warning"
             )
         
@@ -118,14 +120,14 @@ class DiningAgent(BaseAgent):
         
         # Calculate confidence
         confidence = self._calculate_confidence(
-            data_source=data_source,
+            source=data_source,
             data_quality_score=100 if restaurants else 60
         )
         
         # Create output
         output = DiningOutput(
             restaurants=restaurants,
-            estimated_daily_food_cost=estimated_daily_cost,
+            estimated_total_cost=estimated_total_cost,
             warnings=warnings,
             data_source=data_source,
             confidence=confidence
@@ -137,17 +139,28 @@ class DiningAgent(BaseAgent):
             "confidence": confidence,
             "warnings": warnings,
             "restaurants_count": len(restaurants),
-            "daily_budget": daily_food_budget
+            "daily_budget": daily_food_budget,
+            "execution_time_ms": 0  # Will be set by orchestrator if needed
         }
         
         return output, metadata
     
-    def _calculate_days(self, start_date: str, end_date: str) -> int:
-        """Calculate number of days in trip"""
+    def _calculate_days(self, start_date: date, end_date: date) -> int:
+        """
+        Calculate number of days in trip
+        
+        FIXED: Accept date objects directly instead of strings
+        
+        Args:
+            start_date: Trip start date (date object)
+            end_date: Trip end date (date object)
+            
+        Returns:
+            Number of days including last day
+        """
         try:
-            start = datetime.strptime(start_date, "%Y-%m-%d")
-            end = datetime.strptime(end_date, "%Y-%m-%d")
-            return (end - start).days + 1  # Include last day
+            # Direct date arithmetic
+            return (end_date - start_date).days + 1  # Include last day
         except Exception as e:
             self.logger.error(f"Failed to calculate days: {e}")
             return 1
@@ -230,7 +243,7 @@ class DiningAgent(BaseAgent):
         diverse_list = []
         for cuisine, group in cuisine_groups.items():
             # Sort by rating
-            group_sorted = sorted(group, key=lambda x: x.rating, reverse=True)
+            group_sorted = sorted(group, key=lambda x: x.rating or 0, reverse=True)
             diverse_list.append(group_sorted[0])
             
             if len(diverse_list) >= 6:
@@ -239,29 +252,36 @@ class DiningAgent(BaseAgent):
         # Fill remaining slots with highest-rated
         if len(diverse_list) < 6:
             remaining = [r for r in restaurants if r not in diverse_list]
-            remaining_sorted = sorted(remaining, key=lambda x: x.rating, reverse=True)
+            remaining_sorted = sorted(remaining, key=lambda x: x.rating or 0, reverse=True)
             diverse_list.extend(remaining_sorted[:6 - len(diverse_list)])
         
         return diverse_list[:6]
     
-    def _estimate_daily_food_cost(
+    def _estimate_total_trip_cost(
         self, 
         restaurants: List[Restaurant],
-        travelers: int
+        travelers: int,
+        days: int
     ) -> float:
         """
-        Estimate daily food cost per person
+        Estimate total food cost for entire trip
         
-        Assumes 3 meals per day
+        Args:
+            restaurants: List of available restaurants
+            travelers: Number of travelers
+            days: Number of days
+            
+        Returns:
+            Total estimated cost for all meals for all travelers for entire trip
         """
         if not restaurants:
             return 0.0
         
         # Calculate average cost per meal
-        total_cost = sum(r.estimated_cost_per_person for r in restaurants)
+        total_cost = sum(r.average_cost_per_person for r in restaurants)
         avg_cost_per_meal = total_cost / len(restaurants) if restaurants else 0
         
-        # 3 meals per day per person
-        daily_cost_per_person = avg_cost_per_meal * 3
+        # 3 meals per day per person for all days
+        total_meals = 3 * travelers * days
         
-        return daily_cost_per_person
+        return avg_cost_per_meal * total_meals

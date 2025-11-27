@@ -135,7 +135,8 @@ class SeedLoader:
         
         results = []
         for hotel in hotels:
-            if hotel.get("city", "").lower() != city_lower:
+            hotel_city = hotel.get("city") or hotel.get("destination")
+            if not hotel_city or hotel_city.lower() != city_lower:
                 continue
             
             # Apply filters
@@ -174,7 +175,8 @@ class SeedLoader:
         
         results = []
         for restaurant in restaurants:
-            if restaurant.get("city", "").lower() != city_lower:
+            rest_city = restaurant.get("city") or restaurant.get("destination")
+            if not rest_city or rest_city.lower() != city_lower:
                 continue
             
             # Apply filters
