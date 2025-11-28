@@ -17,10 +17,10 @@ async def main():
     retriever = SmartRetriever()
     
     request = TripRequest(
-        destination="Bali",
+        destination="Malang",
         origin="Jakarta",
-        start_date=date(2024, 12, 20),
-        end_date=date(2024, 12, 22),
+        start_date=date(2025, 12, 20),
+        end_date=date(2025, 12, 22),
         budget=15000000.0,
         travelers=2,
         preferences=TripPreferences(
@@ -120,26 +120,26 @@ async def main():
     # ============================================================
     # TEST 4: FlightAgent
     # ============================================================
-    # print("\n" + "="*60)
-    # print("✈️  TEST 4: FlightAgent")
-    # print("="*60)
-    # try:
-    #     from agents import FlightAgent
-    #     agent = FlightAgent(retriever)
-    #     result = await agent.execute(request)
+    print("\n" + "="*60)
+    print("✈️  TEST 4: FlightAgent")
+    print("="*60)
+    try:
+        from agents import FlightAgent
+        agent = FlightAgent(retriever)
+        result = await agent.execute(request)
         
-    #     # FlightAgent doesn't return tuple based on GitHub code
-    #     output = result
+        # FlightAgent doesn't return tuple based on GitHub code
+        output = result
         
-    #     print(f"✅ SUCCESS")
-    #     print(f"   Outbound: {len(output.outbound_flights)}")
-    #     print(f"   Return: {len(output.return_flights)}")
-    #     print(f"   Total cost: Rp {output.total_flight_cost:,}")
-    #     print(f"   Data Source: {output.data_source}")
-    # except Exception as e:
-    #     print(f"❌ FAILED: {e}")
-    #     import traceback
-    #     traceback.print_exc()
+        print(f"✅ SUCCESS")
+        print(f"   Outbound: {len(output.outbound_flights)}")
+        print(f"   Return: {len(output.return_flights)}")
+        print(f"   Total cost: Rp {output.total_flight_cost:,}")
+        print(f"   Data Source: {output.data_source}")
+    except Exception as e:
+        print(f"❌ FAILED: {e}")
+        import traceback
+        traceback.print_exc()
     
     # ============================================================
     # TEST 5: BudgetAgent

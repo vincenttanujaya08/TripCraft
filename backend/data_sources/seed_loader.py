@@ -87,7 +87,7 @@ class SeedLoader:
         if self._flights_cache is None:
             self._flights_cache = self._load_json("flights.json")
         return self._flights_cache
-    
+
     # ========== QUERY METHODS ==========
     
     def get_destination(self, city: str) -> Optional[Dict]:
@@ -243,6 +243,123 @@ class SeedLoader:
             "restaurants": len(self.load_restaurants()),
             "flight_routes": len(self.load_flights())
         }
+    
+    def get_flights(self, origin: str, destination: str) -> Optional[Dict]:
+        """
+        Get flights between two cities (transforms seed data to expected format)
+        """
+        flights = self.load_flights()
+        origin_lower = origin.lower()
+        dest_lower = destination.lower()
+        
+        # Find matching route
+        for flight_route in flights:
+            route = flight_route.get("route", "").lower()
+            parts = route.split("-")
+            
+            if len(parts) != 2:
+                continue
+            
+            route_origin = parts[0].strip()
+            route_dest = parts[1].strip()
+            
+            # Check if route matches
+            if origin_lower in route_origin and dest_lower in route_dest:
+                logger.info(f"Found seed route: {flight_route.get('route')}")
+                
+                # Get airline code
+                airline_name = flight_route.get("airline", "Unknown")
+                airline_map = {
+                    "garuda indonesia": "GA",
+                    "lion air": "JT",
+                    "airasia": "AK",
+                    "singapore airlines": "SQ"
+                }
+                airline_code = airline_map.get(airline_name.lower(), "XX")
+                
+                # Get duration and prices
+                duration_min = int(flight_route.get("duration_hours", 2) * 60)
+                price_min = flight_route.get("price_range_min", 1000000)
+                price_max = flight_route.get("price_range_max", 2000000)
+                price_mid = (price_min + price_max) / 2
+                
+                # Calculate arrival times
+                from datetime import datetime, timedelta
+                
+                def calc_arrival(dept_time, duration):
+                    dept = datetime.strptime(dept_time, "%H:%M")
+                    arr = dept + timedelta(minutes=duration)
+                    return arr.strftime("%H:%M")
+                
+                # Generate outbound flights
+                outbound = [
+                    {
+                        "airline": airline_code,
+                        "flight_number": f"{airline_code}401",
+                        "departure_time": "08:00",
+                        "arrival_time": calc_arrival("08:00", duration_min),
+                        "duration_minutes": duration_min,
+                        "price": price_max,
+                        "class": "economy"
+                    },
+                    {
+                        "airline": airline_code,
+                        "flight_number": f"{airline_code}403",
+                        "departure_time": "14:00",
+                        "arrival_time": calc_arrival("14:00", duration_min),
+                        "duration_minutes": duration_min,
+                        "price": price_mid,
+                        "class": "economy"
+                    },
+                    {
+                        "airline": airline_code,
+                        "flight_number": f"{airline_code}405",
+                        "departure_time": "19:00",
+                        "arrival_time": calc_arrival("19:00", duration_min),
+                        "duration_minutes": duration_min,
+                        "price": price_min,
+                        "class": "economy"
+                    }
+                ]
+                
+                # Generate return flights
+                return_flights = [
+                    {
+                        "airline": airline_code,
+                        "flight_number": f"{airline_code}402",
+                        "departure_time": "09:00",
+                        "arrival_time": calc_arrival("09:00", duration_min),
+                        "duration_minutes": duration_min,
+                        "price": price_max,
+                        "class": "economy"
+                    },
+                    {
+                        "airline": airline_code,
+                        "flight_number": f"{airline_code}404",
+                        "departure_time": "15:00",
+                        "arrival_time": calc_arrival("15:00", duration_min),
+                        "duration_minutes": duration_min,
+                        "price": price_mid,
+                        "class": "economy"
+                    },
+                    {
+                        "airline": airline_code,
+                        "flight_number": f"{airline_code}406",
+                        "departure_time": "20:00",
+                        "arrival_time": calc_arrival("20:00", duration_min),
+                        "duration_minutes": duration_min,
+                        "price": price_min,
+                        "class": "economy"
+                    }
+                ]
+                
+                return {
+                    "outbound": outbound,
+                    "return": return_flights
+                }
+        
+        logger.warning(f"No flights found for {origin} → {destination}")
+        return None
 
 
 # Singleton instance
