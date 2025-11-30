@@ -1,319 +1,419 @@
-#!/usr/bin/env python3
 """
-Test FlightAgent Update (Step B.2)
-Tests: max_budget parameter and ground transport fallback
+Test Script for TripOrchestrator
+
+Tests:
+1. Basic trip planning (happy path)
+2. Budget constraints (tight budget)
+3. Progress tracking
+4. Multiple destinations
+5. Error scenarios
+
+Run: python test_orchestrator.py
 """
 
-import sys
 import asyncio
-from pathlib import Path
-from datetime import date, timedelta
+import sys
+from datetime import datetime, timedelta
 
-sys.path.insert(0, str(Path(__file__).parent))
+# Add backend to path
+sys.path.insert(0, '/Users/vincent/Downloads/tripcraft-lite 2')
 
-from dotenv import load_dotenv
-load_dotenv()
+from backend.models.schemas import TripRequest
+from backend.orchestrator.trip_orchestrator import (
+    TripOrchestrator,
+    BudgetAllocationStrategy,
+    ExecutionProgress
+)
 
 
-async def test_import():
-    """Test 1: Import FlightAgent"""
+def print_header(title: str):
+    """Print formatted test header"""
     print("\n" + "="*60)
-    print("TEST 1: Import FlightAgent")
-    print("="*60)
+    print(f"{title}")
+    print("="*60 + "\n")
+
+
+def print_trip_summary(trip_plan, metadata):
+    """Print trip plan summary"""
+    print("\n📋 TRIP PLAN SUMMARY")
+    print("-" * 60)
+    print(f"Destination: {trip_plan.destination.destination}")
+    print(f"Duration: {len(trip_plan.itinerary.daily_itineraries)} days")
+    print(f"\n💰 BUDGET:")
+    print(f"  Total Cost: Rp {trip_plan.budget.total_cost:,.0f}")
+    print(f"  Allocated: Rp {trip_plan.budget.budget_allocated:,.0f}")
+    print(f"  Remaining: Rp {trip_plan.budget.remaining_budget:,.0f}")
+    print(f"  Within Budget: {'✅ YES' if trip_plan.budget.within_budget else '⚠️  NO'}")
+    
+    print(f"\n✈️  FLIGHTS:")
+    print(f"  Outbound: {len(trip_plan.flights.outbound_flights)} options")
+    print(f"  Return: {len(trip_plan.flights.return_flights)} options")
+    print(f"  Cost: Rp {trip_plan.flights.total_cost:,.0f}")
+    
+    print(f"\n🏨 HOTEL:")
+    print(f"  Name: {trip_plan.hotels.recommended_hotel.name}")
+    print(f"  Rating: {trip_plan.hotels.recommended_hotel.rating}⭐")
+    print(f"  Cost: Rp {trip_plan.hotels.total_cost:,.0f}")
+    
+    print(f"\n🍽️  DINING:")
+    print(f"  Meal Plans: {len(trip_plan.dining.meal_plan)} days")
+    print(f"  Cost: Rp {trip_plan.dining.estimated_total_cost:,.0f}")
+    
+    print(f"\n📅 ITINERARY:")
+    total_activities = sum(len(day.activities) for day in trip_plan.itinerary.daily_itineraries)
+    print(f"  Days: {len(trip_plan.itinerary.daily_itineraries)}")
+    print(f"  Activities: {total_activities}")
+    
+    print(f"\n✅ VERIFICATION:")
+    print(f"  Overall Score: {trip_plan.verification.overall_score:.1f}/10")
+    print(f"  Valid: {'✅ YES' if trip_plan.verification.is_valid else '❌ NO'}")
+    
+    print(f"\n🎯 CONFIDENCE:")
+    print(f"  Overall: {trip_plan.overall_confidence:.2%}")
+    
+    if trip_plan.warnings:
+        print(f"\n⚠️  WARNINGS ({len(trip_plan.warnings)}):")
+        for i, warning in enumerate(trip_plan.warnings[:5], 1):
+            print(f"  {i}. {warning}")
+        if len(trip_plan.warnings) > 5:
+            print(f"  ... and {len(trip_plan.warnings) - 5} more")
+
+
+async def test_basic_trip():
+    """Test 1: Basic trip planning (happy path)"""
+    print_header("TEST 1: Basic Trip Planning (Happy Path)")
+    
+    print("🔍 Creating trip request:")
+    print("   Destination: Bali")
+    print("   Origin: Jakarta")
+    print("   Duration: 4 days")
+    print("   Budget: Rp 15,000,000")
+    print("   Travelers: 2")
+    
+    request = TripRequest(
+        destination="Bali",
+        origin="Jakarta",
+        duration_days=4,
+        start_date="2024-07-15",
+        end_date="2024-07-18",
+        budget=15000000.0,
+        num_travelers=2,
+        preferences={
+            "accommodation_type": "hotel",
+            "interests": ["culture", "beach", "food"]
+        }
+    )
+    
+    # Show budget allocation
+    print(f"\n💰 Budget Allocation Strategy:")
+    allocation = BudgetAllocationStrategy.allocate(request.budget)
+    print(BudgetAllocationStrategy.get_allocation_summary(request.budget))
+    
+    print("\n🚀 Starting orchestration...")
+    print("-" * 60)
+    
+    orchestrator = TripOrchestrator()
+    
+    # Progress tracking
+    progress_updates = []
+    def on_progress(progress: ExecutionProgress):
+        progress_updates.append({
+            'step': progress.current_step,
+            'agent': progress.current_agent,
+            'percentage': progress.get_progress_percentage(),
+            'message': progress.messages[-1] if progress.messages else ""
+        })
+        print(f"  [{progress.get_progress_percentage():5.1f}%] {progress.messages[-1]}")
     
     try:
-        from backend.agents.flight_agent import FlightAgent
-        from backend.data_sources.smart_retriever import SmartRetriever
+        trip_plan, metadata = await orchestrator.plan_trip(request, on_progress)
         
-        retriever = SmartRetriever()
-        agent = FlightAgent(retriever)
+        print("\n✅ Orchestration completed!")
+        print_trip_summary(trip_plan, metadata)
         
-        print("✅ FlightAgent imported and initialized!")
+        # Verify execution
+        assert metadata['success'] == True, "Execution should succeed"
+        assert trip_plan.destination is not None, "Should have destination"
+        assert trip_plan.flights is not None, "Should have flights"
+        assert trip_plan.hotels is not None, "Should have hotels"
+        assert trip_plan.dining is not None, "Should have dining"
+        assert trip_plan.budget is not None, "Should have budget"
+        assert trip_plan.itinerary is not None, "Should have itinerary"
+        assert trip_plan.verification is not None, "Should have verification"
+        
+        print("\n✅ PASS - Basic Trip Planning")
         return True
+        
     except Exception as e:
-        print(f"❌ Import failed: {e}")
+        print(f"\n❌ FAIL - Error: {str(e)}")
         import traceback
         traceback.print_exc()
         return False
 
 
-async def test_method_signature():
-    """Test 2: Check execute method signature"""
-    print("\n" + "="*60)
-    print("TEST 2: Check Execute Method Signature")
-    print("="*60)
+async def test_tight_budget():
+    """Test 2: Tight budget scenario"""
+    print_header("TEST 2: Tight Budget Scenario")
+    
+    print("🔍 Creating trip request with tight budget:")
+    print("   Destination: Bali")
+    print("   Origin: Jakarta")
+    print("   Duration: 4 days")
+    print("   Budget: Rp 5,000,000 (very tight!)")
+    print("   Travelers: 2")
+    
+    request = TripRequest(
+        destination="Bali",
+        origin="Jakarta",
+        duration_days=4,
+        start_date="2024-07-15",
+        end_date="2024-07-18",
+        budget=5000000.0,  # Tight budget
+        num_travelers=2,
+        preferences={
+            "accommodation_type": "hostel",
+            "interests": ["culture", "beach"]
+        }
+    )
+    
+    print(f"\n💰 Budget Allocation:")
+    allocation = BudgetAllocationStrategy.allocate(request.budget)
+    print(f"  Flights: Rp {allocation['flight']:,.0f}")
+    print(f"  Hotels: Rp {allocation['hotel']:,.0f}")
+    print(f"  Food: Rp {allocation['food']:,.0f}")
+    
+    print("\n🚀 Starting orchestration...")
+    
+    orchestrator = TripOrchestrator()
     
     try:
-        from backend.agents.flight_agent import FlightAgent
-        import inspect
+        trip_plan, metadata = await orchestrator.plan_trip(request)
         
-        # Get execute method signature
-        sig = inspect.signature(FlightAgent.execute)
-        params = list(sig.parameters.keys())
+        print("\n✅ Orchestration completed!")
+        print_trip_summary(trip_plan, metadata)
         
-        print(f"✅ Method signature: execute({', '.join(params)})")
+        # Check for budget warnings
+        has_budget_warnings = any('budget' in w.lower() or 'exceed' in w.lower() 
+                                  for w in trip_plan.warnings)
+        print(f"\n📊 Budget Warnings: {'✅ YES' if has_budget_warnings else '⚠️  NONE'}")
         
-        # Check if max_budget parameter exists
-        if 'max_budget' in params:
-            print("✅ max_budget parameter exists!")
-        else:
-            print("❌ max_budget parameter NOT FOUND!")
-            print("   Expected signature: execute(self, request, max_budget=None)")
-            return False
+        # Verify execution
+        assert metadata['success'] == True, "Should complete even with tight budget"
+        assert len(trip_plan.warnings) > 0, "Should have warnings for tight budget"
         
+        print("\n✅ PASS - Tight Budget Scenario")
         return True
+        
     except Exception as e:
-        print(f"❌ Signature check failed: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"\n❌ FAIL - Error: {str(e)}")
         return False
 
 
-async def test_basic_execution():
-    """Test 3: Basic execution without budget"""
-    print("\n" + "="*60)
-    print("TEST 3: Basic Execution (No Budget Constraint)")
-    print("="*60)
+async def test_progress_tracking():
+    """Test 3: Progress tracking"""
+    print_header("TEST 3: Progress Tracking")
+    
+    request = TripRequest(
+        destination="Yogyakarta",
+        origin="Jakarta",
+        duration_days=3,
+        start_date="2024-08-01",
+        end_date="2024-08-03",
+        budget=8000000.0,
+        num_travelers=2
+    )
+    
+    print("🔍 Testing progress tracking...")
+    print("   Tracking all 7 agent executions\n")
+    
+    orchestrator = TripOrchestrator()
+    
+    progress_log = []
+    
+    def on_progress(progress: ExecutionProgress):
+        if progress.messages:
+            latest = progress.messages[-1]
+            progress_log.append({
+                'step': progress.current_step,
+                'percentage': progress.get_progress_percentage(),
+                'message': latest
+            })
+            print(f"[{progress.current_step}/7] {progress.get_progress_percentage():5.1f}% - {latest}")
     
     try:
-        from backend.agents.flight_agent import FlightAgent
-        from backend.data_sources.smart_retriever import SmartRetriever
-        from backend.models.schemas import TripRequest, TripPreferences
+        trip_plan, metadata = await orchestrator.plan_trip(request, on_progress)
         
-        retriever = SmartRetriever()
-        agent = FlightAgent(retriever)
+        print(f"\n✅ Orchestration completed!")
+        print(f"\n📊 Progress Log Analysis:")
+        print(f"   Total messages: {len(progress_log)}")
+        print(f"   Steps tracked: {max(p['step'] for p in progress_log)}/7")
         
-        # Create request
-        today = date.today()
-        start_date = today + timedelta(days=30)
-        end_date = start_date + timedelta(days=3)
+        # Verify progress tracking
+        assert len(progress_log) > 0, "Should have progress messages"
+        assert max(p['step'] for p in progress_log) == 7, "Should track all 7 steps"
+        
+        print("\n✅ PASS - Progress Tracking")
+        return True
+        
+    except Exception as e:
+        print(f"\n❌ FAIL - Error: {str(e)}")
+        return False
+
+
+async def test_multiple_destinations():
+    """Test 4: Different destinations"""
+    print_header("TEST 4: Multiple Destinations")
+    
+    destinations = [
+        ("Bali", "Jakarta"),
+        ("Yogyakarta", "Jakarta"),
+        ("Lombok", "Jakarta")
+    ]
+    
+    results = []
+    
+    for dest, origin in destinations:
+        print(f"\n🔍 Testing: {origin} → {dest}")
         
         request = TripRequest(
-            destination="Bali",
-            origin="Jakarta",
-            start_date=start_date,
-            end_date=end_date,
+            destination=dest,
+            origin=origin,
+            duration_days=3,
+            start_date="2024-07-15",
+            end_date="2024-07-17",
             budget=10000000.0,
-            travelers=2,
-            preferences=TripPreferences(
-                accommodation="mid-range",
-                interests=["beach"],
-                dietary_restrictions=[],
-                pace="moderate"
-            )
+            num_travelers=2
         )
         
-        print(f"\n🔍 Testing flight search:")
-        print(f"   Route: {request.origin} → {request.destination}")
-        print(f"   Dates: {request.start_date} to {request.end_date}")
-        print(f"   Travelers: {request.travelers}")
+        orchestrator = TripOrchestrator()
         
-        # Execute WITHOUT max_budget
-        result = await agent.execute(request)
-        
-        print(f"\n✅ Execution successful!")
-        print(f"   Outbound flights: {len(result.outbound_flights)}")
-        print(f"   Return flights: {len(result.return_flights)}")
-        print(f"   Total cost: Rp {result.total_flight_cost:,.0f}")
-        print(f"   Data source: {result.data_source}")
-        print(f"   Confidence: {result.confidence:.2f}")
-        
-        if result.warnings:
-            print(f"\n   Warnings: {len(result.warnings)}")
-            for warning in result.warnings:
-                print(f"      - {warning}")
-        
-        return True
-    except Exception as e:
-        print(f"❌ Basic execution failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
-async def test_budget_constraint():
-    """Test 4: Execution with budget constraint"""
-    print("\n" + "="*60)
-    print("TEST 4: Execution WITH Budget Constraint")
-    print("="*60)
-    
-    try:
-        from backend.agents.flight_agent import FlightAgent
-        from backend.data_sources.smart_retriever import SmartRetriever
-        from backend.models.schemas import TripRequest, TripPreferences
-        
-        retriever = SmartRetriever()
-        agent = FlightAgent(retriever)
-        
-        # Create request
-        today = date.today()
-        start_date = today + timedelta(days=30)
-        end_date = start_date + timedelta(days=3)
-        
-        request = TripRequest(
-            destination="Bali",
-            origin="Jakarta",
-            start_date=start_date,
-            end_date=end_date,
-            budget=5000000.0,  # Low budget
-            travelers=2,
-            preferences=TripPreferences(
-                accommodation="budget",
-                interests=["beach"],
-                dietary_restrictions=[],
-                pace="moderate"
-            )
-        )
-        
-        # Set strict budget (35% of total)
-        max_flight_budget = request.budget * 0.35
-        
-        print(f"\n🔍 Testing with budget constraint:")
-        print(f"   Total budget: Rp {request.budget:,.0f}")
-        print(f"   Max flight budget: Rp {max_flight_budget:,.0f}")
-        print(f"   Per person: Rp {max_flight_budget / request.travelers:,.0f}")
-        
-        # Execute WITH max_budget
-        result = await agent.execute(request, max_budget=max_flight_budget)
-        
-        print(f"\n✅ Execution successful!")
-        print(f"   Total cost: Rp {result.total_flight_cost:,.0f}")
-        
-        # Check if over budget
-        if result.total_flight_cost > max_flight_budget:
-            over_amount = result.total_flight_cost - max_flight_budget
-            print(f"   ⚠️  Over budget by Rp {over_amount:,.0f}")
+        try:
+            trip_plan, metadata = await orchestrator.plan_trip(request)
             
-            # Check if warning was added
-            budget_warnings = [w for w in result.warnings if 'budget' in w.lower() or 'exceeds' in w.lower()]
-            if budget_warnings:
-                print(f"   ✅ Budget warning present:")
-                for warning in budget_warnings:
-                    print(f"      - {warning[:100]}...")
-            else:
-                print(f"   ❌ No budget warning (should have warned!)")
-                return False
-        else:
-            print(f"   ✅ Within budget!")
-        
-        return True
-    except Exception as e:
-        print(f"❌ Budget constraint test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
-async def test_ground_transport_fallback():
-    """Test 5: Ground transport fallback"""
-    print("\n" + "="*60)
-    print("TEST 5: Ground Transport Fallback")
-    print("="*60)
+            print(f"   ✅ Success: Rp {trip_plan.budget.total_cost:,.0f}, "
+                  f"Confidence: {trip_plan.overall_confidence:.2%}")
+            
+            results.append({
+                'destination': dest,
+                'success': True,
+                'cost': trip_plan.budget.total_cost,
+                'confidence': trip_plan.overall_confidence
+            })
+            
+        except Exception as e:
+            print(f"   ❌ Failed: {str(e)}")
+            results.append({
+                'destination': dest,
+                'success': False,
+                'error': str(e)
+            })
     
-    try:
-        from backend.agents.flight_agent import FlightAgent
-        from backend.data_sources.smart_retriever import SmartRetriever
-        from backend.models.schemas import TripRequest, TripPreferences
-        
-        retriever = SmartRetriever()
-        agent = FlightAgent(retriever)
-        
-        # Create request for route with ground transport
-        today = date.today()
-        start_date = today + timedelta(days=30)
-        end_date = start_date + timedelta(days=2)
-        
-        request = TripRequest(
-            destination="Bandung",  # Ground transport available!
-            origin="Jakarta",
-            start_date=start_date,
-            end_date=end_date,
-            budget=3000000.0,
-            travelers=2,
-            preferences=TripPreferences(
-                accommodation="budget",
-                interests=["culture"],
-                dietary_restrictions=[],
-                pace="moderate"
-            )
-        )
-        
-        print(f"\n🔍 Testing Jakarta → Bandung:")
-        print(f"   (This route has train/bus options)")
-        
-        # Execute
-        result = await agent.execute(request, max_budget=500000)
-        
-        print(f"\n✅ Execution successful!")
-        print(f"   Flights found: {len(result.outbound_flights)}")
-        
-        # Check if ground transport mentioned in warnings
-        ground_warnings = [
-            w for w in result.warnings 
-            if any(word in w.lower() for word in ['train', 'bus', 'ground'])
-        ]
-        
-        if ground_warnings:
-            print(f"   ✅ Ground transport alternative mentioned!")
-            for warning in ground_warnings:
-                print(f"      - {warning[:120]}...")
+    # Summary
+    print(f"\n📊 Results Summary:")
+    successful = sum(1 for r in results if r['success'])
+    print(f"   Successful: {successful}/{len(destinations)}")
+    
+    for result in results:
+        if result['success']:
+            print(f"   ✅ {result['destination']}: "
+                  f"Rp {result['cost']:,.0f}, {result['confidence']:.2%}")
         else:
-            print(f"   ⚠️  No ground transport mention (might be OK if flights found)")
+            print(f"   ❌ {result['destination']}: {result.get('error', 'Unknown error')}")
+    
+    assert successful == len(destinations), f"Should succeed for all destinations"
+    
+    print("\n✅ PASS - Multiple Destinations")
+    return True
+
+
+async def test_budget_allocation():
+    """Test 5: Budget allocation validation"""
+    print_header("TEST 5: Budget Allocation Validation")
+    
+    test_budgets = [
+        5000000,   # 5M
+        10000000,  # 10M
+        20000000,  # 20M
+        50000000,  # 50M
+    ]
+    
+    print("🔍 Testing budget allocation percentages:\n")
+    
+    for budget in test_budgets:
+        allocation = BudgetAllocationStrategy.allocate(budget)
+        total = sum(allocation.values())
         
-        return True
-    except Exception as e:
-        print(f"❌ Ground transport test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+        print(f"Budget: Rp {budget:,.0f}")
+        print(f"  Flights: Rp {allocation['flight']:,.0f} (35%)")
+        print(f"  Hotels: Rp {allocation['hotel']:,.0f} (30%)")
+        print(f"  Food: Rp {allocation['food']:,.0f} (20%)")
+        print(f"  Activities: Rp {allocation['activities']:,.0f} (10%)")
+        print(f"  Misc: Rp {allocation['misc']:,.0f} (5%)")
+        print(f"  Total: Rp {total:,.0f} ({'✅' if abs(total - budget) < 1 else '❌'})")
+        print()
+        
+        # Verify
+        assert abs(total - budget) < 1, f"Allocation should sum to budget"
+        assert allocation['flight'] == budget * 0.35, "Flight should be 35%"
+        assert allocation['hotel'] == budget * 0.30, "Hotel should be 30%"
+        assert allocation['food'] == budget * 0.20, "Food should be 20%"
+        assert allocation['activities'] == budget * 0.10, "Activities should be 10%"
+        assert allocation['misc'] == budget * 0.05, "Misc should be 5%"
+    
+    print("✅ PASS - Budget Allocation Validation")
+    return True
 
 
-async def main():
+async def run_all_tests():
     """Run all tests"""
-    print("="*60)
-    print("🧪 TESTING FLIGHTAGENT UPDATE (Step B.2)")
+    print("\n" + "="*60)
+    print("🧪 TRIPORCHESTRATOR TEST SUITE")
     print("="*60)
     
     tests = [
-        ("Import FlightAgent", test_import),
-        ("Method Signature", test_method_signature),
-        ("Basic Execution", test_basic_execution),
-        ("Budget Constraint", test_budget_constraint),
-        ("Ground Transport Fallback", test_ground_transport_fallback)
+        ("Basic Trip Planning", test_basic_trip),
+        ("Tight Budget Scenario", test_tight_budget),
+        ("Progress Tracking", test_progress_tracking),
+        ("Multiple Destinations", test_multiple_destinations),
+        ("Budget Allocation", test_budget_allocation),
     ]
     
-    results = {}
+    results = []
     
-    for test_name, test_func in tests:
+    for name, test_func in tests:
         try:
-            results[test_name] = await test_func()
+            result = await test_func()
+            results.append((name, result))
         except Exception as e:
-            print(f"\n❌ {test_name} crashed: {e}")
-            results[test_name] = False
+            print(f"\n❌ Test '{name}' crashed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            results.append((name, False))
     
-    # Summary
+    # Final summary
     print("\n" + "="*60)
     print("📊 TEST SUMMARY")
     print("="*60)
     
-    for test_name, passed in results.items():
-        status = "✅ PASS" if passed else "❌ FAIL"
-        print(f"{status} - {test_name}")
+    passed = sum(1 for _, result in results if result)
+    total = len(results)
     
-    total_passed = sum(1 for passed in results.values() if passed)
-    total_tests = len(results)
+    for name, result in results:
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"{status} - {name}")
     
-    print(f"\n   Total: {total_passed}/{total_tests} tests passed")
+    print(f"\n   Total: {passed}/{total} tests passed")
     
-    if total_passed >= 4:  # Allow 1 failure (ground transport might be tricky)
-        print("\n🎉 TESTS PASSED! FlightAgent updated correctly! 🎉")
-        print("\n✅ Next: Update HotelAgent (Step B.3)")
-        return 0
+    if passed == total:
+        print("\n🎉 ALL TESTS PASSED! 🎉")
     else:
-        print("\n⚠️  Multiple tests failed. Check FlightAgent update.")
-        return 1
+        print(f"\n⚠️  {total - passed} test(s) failed")
+    
+    print("="*60)
+    
+    return passed == total
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
-    sys.exit(exit_code)
+    success = asyncio.run(run_all_tests())
+    sys.exit(0 if success else 1)

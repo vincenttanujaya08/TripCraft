@@ -222,10 +222,14 @@ class SmartRetriever:
                 departure_datetime = f"{departure_date}T{dep_time}:00"
                 
                 # Calculate arrival datetime (might be next day)
+                # Calculate arrival datetime (might be next day)
                 from datetime import datetime, timedelta
                 dep_dt = datetime.fromisoformat(departure_datetime)
-                duration_hours = flight.get('duration_hours', 2)
-                arr_dt = dep_dt + timedelta(hours=duration_hours)
+                try:
+                    duration_hours = float(flight.get('duration_hours', 2))
+                except (TypeError, ValueError):
+                    duration_hours = 2.0  # Default fallback
+                arr_dt = dep_dt + timedelta(hours=float(duration_hours or 2))
                 arrival_datetime = arr_dt.isoformat()
                 
                 # Calculate average price
@@ -263,7 +267,7 @@ class SmartRetriever:
                     from datetime import datetime, timedelta
                     ret_dt = datetime.fromisoformat(return_datetime)
                     duration_hours = flight['duration_hours']
-                    arr_ret_dt = ret_dt + timedelta(hours=duration_hours)
+                    arr_ret_dt = ret_dt + timedelta(hours=float(duration_hours or 2))
                     arrival_ret_datetime = arr_ret_dt.isoformat()
                     
                     return_flight = {
@@ -308,7 +312,7 @@ class SmartRetriever:
             from datetime import datetime, timedelta
             dep_dt = datetime.fromisoformat(departure_datetime)
             duration_hours = llm_flight.get('duration_hours', 2)
-            arr_dt = dep_dt + timedelta(hours=duration_hours)
+            arr_dt = dep_dt + timedelta(hours=float(duration_hours or 2))
             arrival_datetime = arr_dt.isoformat()
             
             min_price = llm_flight.get('price_range_min', 1000000)

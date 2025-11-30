@@ -9,7 +9,7 @@ from typing import Generator
 import os
 from dotenv import load_dotenv
 
-from models.database import Base
+from backend.models.database import Base
 
 load_dotenv()
 

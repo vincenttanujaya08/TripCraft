@@ -30,7 +30,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup"""
-    from models.database import init_db
+from backend.models.database import init_db
     init_db()
     print("✅ TripCraft Lite API started successfully!")
 

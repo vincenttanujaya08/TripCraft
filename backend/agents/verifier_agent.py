@@ -4,7 +4,7 @@ Verifier Agent - Validates and checks trip plan quality
 import logging
 from datetime import datetime
 from typing import List, Dict, Any
-from models.schemas import (
+from backend.models.schemas import (
     TripRequest,
     VerificationOutput,
     ValidationIssue,
@@ -15,8 +15,8 @@ from models.schemas import (
     BudgetOutput,
     ItineraryOutput,
 )
-from agents.base_agent import BaseAgent
-from data_sources.smart_retriever import SmartRetriever
+from backend.agents.base_agent import BaseAgent
+from backend.data_sources.smart_retriever import SmartRetriever
 
 logger = logging.getLogger(f"agent.Verifier")
 

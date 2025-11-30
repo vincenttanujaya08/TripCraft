@@ -4,15 +4,15 @@ FlightAgent - UPDATED with budget allocation and ground transport fallback
 import logging
 from datetime import datetime, date
 from typing import List, Optional, Tuple, Dict, Any
-from models.schemas import (
+from backend.models.schemas import (
     TripRequest, 
     FlightOutput, 
     Flight,
     GroundTransportOption,
     GroundTransportRoute
 )
-from agents.base_agent import BaseAgent
-from data_sources.smart_retriever import SmartRetriever
+from backend.agents.base_agent import BaseAgent
+from backend.data_sources.smart_retriever import SmartRetriever
 
 logger = logging.getLogger(f"agent.Flight")
 

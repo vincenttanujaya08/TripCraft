@@ -6,15 +6,15 @@ COMPLETE REWRITE: Now generates complete meal plan for entire trip
 import logging
 from typing import Dict, Optional, List, Set, Tuple
 from datetime import date, timedelta
-from agents.base_agent import BaseAgent
-from models.schemas import (
+from backend.agents.base_agent import BaseAgent
+from backend.models.schemas import (
     TripRequest, 
     DiningOutput, 
     DailyMealPlan,
     Restaurant,
     HotelOutput
 )
-from data_sources import get_smart_retriever
+from backend.data_sources import get_smart_retriever
 
 logger = logging.getLogger(__name__)
 

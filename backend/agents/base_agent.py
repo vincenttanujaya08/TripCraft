@@ -6,7 +6,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
-from models.schemas import TripRequest
+from backend.models.schemas import TripRequest
 
 logger = logging.getLogger(__name__)
 

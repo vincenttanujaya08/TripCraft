@@ -1,3 +1,3 @@
 """Models package"""
-from models.schemas import *
-from models.database import *
+from backend.models.schemas import *
+from backend.models.database import *

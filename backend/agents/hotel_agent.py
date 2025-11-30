@@ -1,10 +1,11 @@
 """
-Hotel Agent - Handles hotel search and recommendations
+Hotel Agent - UPDATED with budget allocation awareness
+Handles hotel search and recommendations with budget constraints
 """
 import os
 import json
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional, Tuple
 from dotenv import load_dotenv
 import google.generativeai as genai
 from backend.models.schemas import (
@@ -18,7 +19,7 @@ from backend.data_sources.seed_loader import SeedLoader
 load_dotenv()
 
 class HotelAgent(BaseAgent):
-    """Agent responsible for finding and recommending hotels"""
+    """Agent responsible for finding and recommending hotels with budget awareness"""
     
     def __init__(self):
         super().__init__("Hotel")
@@ -85,10 +86,26 @@ Provide realistic prices in IDR. Rating 0.0-5.0. Return ONLY the JSON array."""
             print(f"❌ LLM hotel search failed: {e}")
             return []
     
-    async def execute(self, request: TripRequest) -> tuple[HotelOutput, Dict]:
-        """Find suitable hotels"""
+    async def execute(
+        self, 
+        request: TripRequest,
+        max_budget: Optional[float] = None  # NEW: Budget allocation parameter
+    ) -> tuple[HotelOutput, Dict]:
+        """
+        Find suitable hotels with budget awareness
+        
+        NEW: Added max_budget parameter for budget allocation
+        
+        Args:
+            request: Trip request
+            max_budget: Maximum budget allocated for accommodation (optional)
+            
+        Returns:
+            (HotelOutput, metadata)
+        """
         start_time = datetime.now()
         data_source = "seed"
+        warnings = []
         
         try:
             # Calculate nights
@@ -96,16 +113,29 @@ Provide realistic prices in IDR. Rating 0.0-5.0. Return ONLY the JSON array."""
             if nights <= 0:
                 nights = 1
             
-            print(f"🛏️  Nights: {nights}, Travelers: {request.travelers}, Budget: Rp {request.budget:,.0f}")
+            # Calculate budget constraints
+            if max_budget:
+                budget_per_night_total = max_budget / nights
+                self.logger.info(
+                    f"💰 Hotel budget: Rp {max_budget:,.0f} total "
+                    f"(Rp {budget_per_night_total:,.0f}/night for all rooms)"
+                )
+            else:
+                budget_per_night_total = None
+            
+            self.logger.info(
+                f"🛏️  Nights: {nights}, Travelers: {request.travelers}, "
+                f"Total budget: Rp {request.budget:,.0f}"
+            )
             
             # Try seed data first
             hotels_data = self.seed_loader.get_hotels_by_city(request.destination)
             
             # Fallback to LLM if no seed data
             if not hotels_data:
-                print(f"⚠️  No hotels in seed data for {request.destination}")
+                self.logger.warning(f"⚠️  No hotels in seed data for {request.destination}")
                 if self.llm_available:
-                    print(f"🤖 Trying LLM fallback...")
+                    self.logger.info(f"🤖 Trying LLM fallback...")
                     hotels_data = await self._get_from_llm(request.destination, request)
                     data_source = "llm_fallback"
                 else:
@@ -128,18 +158,43 @@ Provide realistic prices in IDR. Rating 0.0-5.0. Return ONLY the JSON array."""
                     )
                     valid_hotels.append(hotel)
                 except Exception as e:
-                    print(f"⚠️  Skipped invalid hotel: {e}")
+                    self.logger.warning(f"⚠️  Skipped invalid hotel: {e}")
                     continue
             
             if not valid_hotels:
                 raise ValueError(f"No valid hotels found for {request.destination}")
             
-            # Filter by budget
-            budget_per_night = request.budget / nights / request.travelers
-            affordable = [h for h in valid_hotels if h.price_per_night <= budget_per_night * 1.5]
-            
-            if affordable:
-                valid_hotels = affordable
+            # BUDGET FILTERING (if max_budget provided)
+            if max_budget and budget_per_night_total:
+                affordable = [
+                    h for h in valid_hotels 
+                    if h.price_per_night <= budget_per_night_total
+                ]
+                
+                if affordable:
+                    self.logger.info(
+                        f"✓ Found {len(affordable)}/{len(valid_hotels)} hotels within budget"
+                    )
+                    valid_hotels = affordable
+                else:
+                    # No hotels within strict budget
+                    self.logger.warning(
+                        f"⚠️  No hotels within budget Rp {budget_per_night_total:,.0f}/night"
+                    )
+                    
+                    # Find cheapest option
+                    cheapest = min(valid_hotels, key=lambda h: h.price_per_night)
+                    cheapest_total = cheapest.price_per_night * nights
+                    over_amount = cheapest_total - max_budget
+                    
+                    warnings.append(
+                        f"⚠️ No hotels found within budget (Rp {budget_per_night_total:,.0f}/night). "
+                        f"Cheapest option: {cheapest.name} at Rp {cheapest.price_per_night:,.0f}/night "
+                        f"(Rp {cheapest_total:,.0f} total, over budget by Rp {over_amount:,.0f})"
+                    )
+                    
+                    # Keep cheapest 3 as options
+                    valid_hotels = sorted(valid_hotels, key=lambda h: h.price_per_night)[:3]
             
             # Sort by rating and price
             valid_hotels.sort(key=lambda h: (h.rating or 0, -h.price_per_night), reverse=True)
@@ -148,29 +203,51 @@ Provide realistic prices in IDR. Rating 0.0-5.0. Return ONLY the JSON array."""
             selected = valid_hotels[:5]
             recommended = selected[0] if selected else None
             
-            # DEBUG: Print calculation
-            if recommended:
-                print(f"💰 CALCULATION:")
-                print(f"   nights = {nights}")
-                print(f"   price_per_night = {recommended.price_per_night:,.0f}")
-                print(f"   formula: {nights} × {recommended.price_per_night:,.0f}")
-            
             # Calculate total cost
             total_cost = nights * recommended.price_per_night if recommended else 0.0
             
-            print(f"   RESULT: Rp {total_cost:,.0f}")
+            self.logger.info(f"💰 CALCULATION:")
+            self.logger.info(f"   nights = {nights}")
+            if recommended:
+                self.logger.info(f"   price_per_night = Rp {recommended.price_per_night:,.0f}")
+                self.logger.info(f"   formula: {nights} × Rp {recommended.price_per_night:,.0f}")
+                self.logger.info(f"   RESULT: Rp {total_cost:,.0f}")
             
-            # Confidence
+            # CHECK BUDGET (if max_budget provided)
+            if max_budget and recommended:
+                if total_cost > max_budget:
+                    over_amount = total_cost - max_budget
+                    over_pct = (over_amount / max_budget) * 100
+                    
+                    self.logger.warning(
+                        f"⚠️ Recommended hotel over budget: "
+                        f"Rp {total_cost:,.0f} > Rp {max_budget:,.0f} (+{over_pct:.1f}%)"
+                    )
+                    
+                    warnings.append(
+                        f"⚠️ Recommended hotel ({recommended.name}) exceeds budget by "
+                        f"Rp {over_amount:,.0f} ({over_pct:.1f}%). "
+                        f"Consider: 1) Increase budget, 2) Choose cheaper hotel, 3) Reduce nights"
+                    )
+                else:
+                    self.logger.info(f"✅ Hotel within budget!")
+            
+            # Calculate confidence
             if data_source == "seed":
                 confidence = 0.9 if len(selected) >= 3 else 0.7
             else:
                 confidence = 0.7 if len(selected) >= 3 else 0.6
             
+            # Add data source warning
+            if data_source == "llm_fallback":
+                warnings.append("Hotels generated by AI - verify availability")
+            
+            # Create output
             output = HotelOutput(
                 hotels=selected,
                 recommended_hotel=recommended,
                 total_accommodation_cost=total_cost,
-                warnings=[] if data_source == "seed" else ["Hotels generated by AI - verify availability"],
+                warnings=warnings,
                 data_source=data_source,
                 confidence=confidence
             )
@@ -183,12 +260,14 @@ Provide realistic prices in IDR. Rating 0.0-5.0. Return ONLY the JSON array."""
                 "hotels_found": len(selected),
                 "data_source": data_source,
                 "nights": nights,
-                "recommended_price": recommended.price_per_night if recommended else 0
+                "recommended_price": recommended.price_per_night if recommended else 0,
+                "budget_allocated": max_budget,
+                "within_budget": total_cost <= max_budget if max_budget else True
             }
             
             return output, metadata
             
         except Exception as e:
             processing_time = (datetime.now() - start_time).total_seconds()
-            print(f"✗ {self.name} failed after {int(processing_time * 1000)}ms: {e}")
+            self.logger.error(f"✗ {self.name} failed after {int(processing_time * 1000)}ms: {e}")
             raise

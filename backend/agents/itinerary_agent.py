@@ -1,11 +1,12 @@
 """
-ItineraryAgent - Generates day-by-day trip itinerary
+ItineraryAgent - UPDATED to use meal_plan from DiningAgent
+Generates day-by-day trip itinerary with specific restaurant assignments
 """
 
 from typing import Dict, Optional, List
 from datetime import datetime, timedelta
-from .base_agent import BaseAgent
-from models.schemas import (
+from backend.agents.base_agent import BaseAgent
+from backend.models.schemas import (
     TripRequest, ItineraryOutput, DayItinerary, Activity,
     DestinationOutput, DiningOutput, HotelOutput
 )
@@ -24,6 +25,8 @@ class ItineraryAgent(BaseAgent):
     ) -> tuple[ItineraryOutput, Dict]:
         """
         Generate day-by-day itinerary from trip data
+        
+        UPDATED: Now uses meal_plan from DiningAgent for specific restaurant assignments
         
         Args:
             request: Trip request
@@ -79,11 +82,13 @@ class ItineraryAgent(BaseAgent):
             warnings=warnings
         )
         
-        # Calculate confidence
-        confidence = self._calculate_confidence(
+        # Calculate confidence (0-1 range, not 0-100)
+        confidence_score = self._calculate_confidence(
             data_source="seed",
             data_quality_score=100 if destination_output else 50
         )
+        # Convert from 0-100 to 0-1
+        confidence = confidence_score / 100.0
         
         # Metadata
         metadata = {
@@ -104,14 +109,24 @@ class ItineraryAgent(BaseAgent):
         hotel_output: Optional[HotelOutput],
         warnings: list
     ) -> List[DayItinerary]:
-        """Generate itinerary for each day of the trip"""
+        """
+        Generate itinerary for each day of the trip
+        
+        UPDATED: Uses meal_plan from DiningAgent for specific restaurants
+        """
         
         days = []
         
-        # Get attractions and restaurants
+        # Get attractions
         attractions = destination_output.attractions if destination_output else []
-        restaurants = dining_output.restaurants if dining_output else []
         hotel = hotel_output.recommended_hotel if hotel_output else None
+        
+        # NEW: Get meal_plan from DiningAgent
+        meal_plan = dining_output.meal_plan if dining_output else []
+        
+        self.logger.info(
+            f"📅 Generating itinerary with {len(meal_plan)} days of meal plans"
+        )
         
         # Generate itinerary for each day
         current_date = request.start_date
@@ -119,6 +134,15 @@ class ItineraryAgent(BaseAgent):
         attraction_index = 0
         
         while current_date <= request.end_date:
+            # Get meal plan for this day
+            day_meals = None
+            if meal_plan:
+                # Find meal plan for this day number
+                day_meals = next(
+                    (m for m in meal_plan if m.day == day_num),
+                    None
+                )
+            
             # Generate activities for the day
             activities = []
             daily_cost = 0.0
@@ -145,21 +169,31 @@ class ItineraryAgent(BaseAgent):
                     request=request
                 )
                 activities.append(morning_activity)
-                daily_cost += self._parse_cost(attractions[attraction_index].entrance_fee) * request.travelers
+                daily_cost += morning_activity.estimated_cost
                 attraction_index += 1
             
-            # Lunch
-            if restaurants:
-                lunch_spot = self._select_restaurant(restaurants, "lunch")
-                if lunch_spot:
-                    lunch_activity = self._create_restaurant_activity(
-                        time="12:30",
-                        meal_type="lunch",
-                        restaurant=lunch_spot,
-                        request=request
-                    )
-                    activities.append(lunch_activity)
-                    daily_cost += lunch_spot.average_cost_per_person * request.travelers
+            # Lunch (NEW: Use meal_plan!)
+            if day_meals and day_meals.lunch:
+                lunch_activity = self._create_meal_activity(
+                    time="12:30",
+                    meal_type="lunch",
+                    restaurant=day_meals.lunch,
+                    request=request
+                )
+                activities.append(lunch_activity)
+                daily_cost += lunch_activity.estimated_cost
+            elif day_meals and day_meals.breakfast_notes:
+                # Hotel breakfast
+                breakfast_activity = Activity(
+                    time="08:00",
+                    name="Breakfast at Hotel",
+                    type="dining",
+                    location=hotel.name if hotel else "Hotel",
+                    description=day_meals.breakfast_notes,
+                    duration_hours=1.0,
+                    estimated_cost=0
+                )
+                activities.append(breakfast_activity)
             
             # Afternoon activity (if available)
             if attraction_index < len(attractions):
@@ -170,21 +204,19 @@ class ItineraryAgent(BaseAgent):
                     request=request
                 )
                 activities.append(afternoon_activity)
-                daily_cost += self._parse_cost(attractions[attraction_index].entrance_fee) * request.travelers
+                daily_cost += afternoon_activity.estimated_cost
                 attraction_index += 1
             
-            # Dinner
-            if restaurants:
-                dinner_spot = self._select_restaurant(restaurants, "dinner")
-                if dinner_spot:
-                    dinner_activity = self._create_restaurant_activity(
-                        time="19:00",
-                        meal_type="dinner",
-                        restaurant=dinner_spot,
-                        request=request
-                    )
-                    activities.append(dinner_activity)
-                    daily_cost += dinner_spot.average_cost_per_person * request.travelers
+            # Dinner (NEW: Use meal_plan!)
+            if day_meals and day_meals.dinner:
+                dinner_activity = self._create_meal_activity(
+                    time="19:00",
+                    meal_type="dinner",
+                    restaurant=day_meals.dinner,
+                    request=request
+                )
+                activities.append(dinner_activity)
+                daily_cost += dinner_activity.estimated_cost
             
             # Create day title
             title = f"Day {day_num}: Explore {request.destination}"
@@ -235,40 +267,34 @@ class ItineraryAgent(BaseAgent):
             estimated_cost=cost
         )
     
-    def _create_restaurant_activity(
+    def _create_meal_activity(
         self,
         time: str,
         meal_type: str,
         restaurant: any,
         request: TripRequest
     ) -> Activity:
-        """Create restaurant activity"""
+        """
+        Create restaurant activity from meal_plan
+        
+        NEW: Uses specific restaurant from DiningAgent's meal_plan
+        """
         
         cost = restaurant.average_cost_per_person * request.travelers
+        
+        description = f"{restaurant.cuisine}"
+        if restaurant.specialties:
+            description += f" - Try: {', '.join(restaurant.specialties[:2])}"
         
         return Activity(
             time=time,
             type="dining",
             name=f"{meal_type.title()}: {restaurant.name}",
             location=restaurant.address or restaurant.name,
-            duration_hours=1.5,
+            duration_hours=1.5 if meal_type == "dinner" else 1.0,
             estimated_cost=cost,
-            description=f"{restaurant.cuisine} - {restaurant.description[:100]}"
+            description=description
         )
-    
-    def _select_restaurant(
-        self,
-        restaurants: List,
-        meal_type: str
-    ) -> Optional[any]:
-        """Select restaurant suitable for meal type"""
-        
-        # Simple rotation through restaurants
-        if restaurants:
-            import random
-            return random.choice(restaurants)
-        
-        return None
     
     def _parse_cost(self, cost: any) -> float:
         """Parse cost to float"""
@@ -309,9 +335,9 @@ class ItineraryAgent(BaseAgent):
         if day_num == 1:
             notes.append("First day - allow extra time for check-in and orientation")
         
-        if pace == "relaxed" and activity_count > 3:
+        if pace == "relaxed" and activity_count > 4:
             notes.append("Consider removing an activity for a more relaxed pace")
-        elif pace == "packed" and activity_count < 3:
+        elif pace == "packed" and activity_count < 4:
             notes.append("You might have time for additional activities")
         
         notes.append(f"Enjoy your {day_name}")
@@ -335,7 +361,7 @@ class ItineraryAgent(BaseAgent):
         
         metadata = {
             "data_source": "error",
-            "confidence": 0,
+            "confidence": 0.0,  # 0-1 range
             "warnings": warnings
         }
         
