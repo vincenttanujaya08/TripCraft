@@ -1,6 +1,7 @@
 """
-SmartRetriever - Updated with Amadeus API for flights
+SmartRetriever - Updated with restaurant retrieval and Amadeus API for flights
 Priority: Amadeus API → Seed Data → LLM Fallback
+UPDATED: Added get_restaurants() method
 """
 
 import logging
@@ -9,7 +10,7 @@ from datetime import date
 from .seed_loader import get_seed_loader
 from .opentripmap_client import get_opentripmap_client
 from .gemini_fallback import get_gemini_fallback
-from .amadeus_client import get_amadeus_client  # NEW!
+from .amadeus_client import get_amadeus_client
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,8 @@ class SmartRetriever:
         self,
         opentripmap_key: Optional[str] = None,
         gemini_key: Optional[str] = None,
-        amadeus_key: Optional[str] = None,       # NEW!
-        amadeus_secret: Optional[str] = None     # NEW!
+        amadeus_key: Optional[str] = None,
+        amadeus_secret: Optional[str] = None
     ):
         """
         Initialize SmartRetriever
@@ -38,7 +39,7 @@ class SmartRetriever:
         self.seed_loader = get_seed_loader()
         self.opentripmap = get_opentripmap_client(api_key=opentripmap_key)
         self.gemini = get_gemini_fallback(api_key=gemini_key)
-        self.amadeus = get_amadeus_client(api_key=amadeus_key, api_secret=amadeus_secret)  # NEW!
+        self.amadeus = get_amadeus_client(api_key=amadeus_key, api_secret=amadeus_secret)
         
         logger.info(
             f"SmartRetriever initialized - "
@@ -46,7 +47,81 @@ class SmartRetriever:
             f"OpenTripMap: {'enabled' if self.opentripmap.enabled else 'disabled'}"
         )
     
-    # ... (keep existing methods for destination, hotels, restaurants)
+    # ========================================
+    # RESTAURANTS (NEW!)
+    # ========================================
+    
+    async def get_restaurants(
+        self,
+        city: str,
+        cuisine: Optional[str] = None,
+        price_range: Optional[str] = None,
+        meal_type: Optional[str] = None,
+        count: int = 20
+    ) -> Tuple[List[Dict], DataSource]:
+        """
+        Get restaurant options with 3-tier fallback
+        
+        PRIORITY:
+        Tier 1: External API (if available - not implemented yet)
+        Tier 2: Seed Data
+        Tier 3: LLM Fallback
+        
+        Args:
+            city: City name (e.g., "Bali", "Tokyo")
+            cuisine: Optional cuisine filter (e.g., "Indonesian", "Japanese")
+            price_range: Optional price filter ("$", "$$", "$$$", "$$$$")
+            meal_type: Optional meal type filter ("breakfast", "lunch", "dinner")
+            count: Number of restaurants to return
+            
+        Returns:
+            (restaurants_list, data_source)
+        """
+        
+        # ========================================
+        # TIER 1: External API (Future)
+        # ========================================
+        # TODO: Add Yelp/Google Places API integration
+        
+        # ========================================
+        # TIER 2: Seed Data
+        # ========================================
+        logger.info(f"[Tier 2] Checking seed data for restaurants in {city}")
+        
+        seed_restaurants = self.seed_loader.get_restaurants_by_city(
+            city=city,
+            cuisine=cuisine,
+            price_range=price_range,
+            meal_type=meal_type
+        )
+        
+        if seed_restaurants:
+            logger.info(f"✓ Found {len(seed_restaurants)} restaurants in seed data")
+            
+            # Return up to 'count' restaurants
+            return seed_restaurants[:count], "seed"
+        
+        # ========================================
+        # TIER 3: LLM Fallback
+        # ========================================
+        logger.info(f"[Tier 3] Generating restaurants via LLM for {city}")
+        
+        llm_restaurants = await self.gemini.generate_restaurants(
+            city=city,
+            cuisine=cuisine,
+            count=count
+        )
+        
+        if llm_restaurants:
+            logger.info(f"✓ Generated {len(llm_restaurants)} restaurants via LLM")
+            return llm_restaurants, "llm_fallback"
+        
+        logger.error(f"✗ All tiers failed for restaurants in {city}")
+        return [], "llm_fallback"
+    
+    # ========================================
+    # FLIGHTS (Existing - keep as is)
+    # ========================================
     
     async def get_flights(
         self,
@@ -286,14 +361,6 @@ class SmartRetriever:
                 return code
         
         return 'XX'
-    
-    def _estimate_price(self, flight: Dict) -> float:
-        """Estimate price from seed data range"""
-        min_price = flight.get('price_range_min', 1000000)
-        max_price = flight.get('price_range_max', 3000000)
-        return (min_price + max_price) / 2
-    
-    # ... (keep other existing methods)
 
 
 # Singleton instance

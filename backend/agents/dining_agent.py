@@ -1,17 +1,26 @@
 """
-DiningAgent - Finds restaurant recommendations based on preferences
-FIXED: Date handling for date objects instead of strings
+DiningAgent - Smart Meal Planning with Day-by-Day Assignments
+COMPLETE REWRITE: Now generates complete meal plan for entire trip
 """
 
-from typing import Dict, Optional, List
-from datetime import datetime, date
+import logging
+from typing import Dict, Optional, List, Set, Tuple
+from datetime import date, timedelta
 from agents.base_agent import BaseAgent
-from models.schemas import TripRequest, DiningOutput, Restaurant
+from models.schemas import (
+    TripRequest, 
+    DiningOutput, 
+    DailyMealPlan,
+    Restaurant,
+    HotelOutput
+)
 from data_sources import get_smart_retriever
+
+logger = logging.getLogger(__name__)
 
 
 class DiningAgent(BaseAgent):
-    """Agent that finds and recommends restaurants"""
+    """Agent that generates complete day-by-day meal plan"""
     
     def __init__(self):
         super().__init__("Dining")
@@ -21,13 +30,13 @@ class DiningAgent(BaseAgent):
         self, 
         request: TripRequest, 
         context: Optional[Dict] = None
-    ) -> tuple[DiningOutput, Dict]:
+    ) -> Tuple[DiningOutput, Dict]:
         """
-        Find restaurants based on preferences and dietary restrictions
+        Generate complete meal plan for entire trip
         
         Args:
             request: Trip request
-            context: Shared context from previous agents
+            context: Shared context (to check hotel breakfast)
             
         Returns:
             (DiningOutput, metadata)
@@ -35,253 +44,556 @@ class DiningAgent(BaseAgent):
         
         warnings = []
         
-        # Calculate trip days - FIX: Handle date objects directly
-        days = self._calculate_days(request.start_date, request.end_date)
-        
-        if days <= 0:
-            self._add_warning(warnings, "Invalid date range - assuming 1 day", "warning")
-            days = 1
-        
-        # Get budget allocation (assume 30% for food)
-        total_budget = request.budget
-        food_budget_total = total_budget * 0.3
-        daily_food_budget = food_budget_total / days
-        
-        # Get cuisine preference from interests (if any)
-        cuisine_preference = self._extract_cuisine_preference(request.preferences.interests)
-        
-        # Get restaurants
-        restaurants_data, data_source = await self.retriever.get_restaurants(
-            city=request.destination,
-            cuisine=cuisine_preference,
-            count=8
-        )
-        
-        if not restaurants_data:
-            self._add_warning(
-                warnings,
-                f"No restaurants found for {request.destination}",
-                "warning"
+        try:
+            # STEP 1: Calculate trip parameters
+            days = self._calculate_days(request.start_date, request.end_date)
+            travelers = request.travelers
+            
+            logger.info(f"🍽️  Planning meals for {days} days, {travelers} travelers")
+            
+            if days <= 0:
+                warnings.append("Invalid date range - assuming 1 day")
+                days = 1
+            
+            # STEP 2: Check if hotel includes breakfast
+            hotel_has_breakfast = self._check_hotel_breakfast(context)
+            if hotel_has_breakfast:
+                logger.info("✓ Hotel includes breakfast")
+            
+            # STEP 3: Calculate budget allocation per meal type
+            budget_per_meal = self._calculate_meal_budgets(
+                total_budget=request.budget,
+                days=days,
+                travelers=travelers,
+                hotel_has_breakfast=hotel_has_breakfast
             )
+            
+            logger.info(
+                f"💰 Budget per person: "
+                f"Breakfast: Rp {budget_per_meal['breakfast']:,.0f}, "
+                f"Lunch: Rp {budget_per_meal['lunch']:,.0f}, "
+                f"Dinner: Rp {budget_per_meal['dinner']:,.0f}"
+            )
+            
+            # STEP 4: Get restaurant options from SmartRetriever
+            all_restaurants, data_source = await self.retriever.get_restaurants(
+                city=request.destination,
+                cuisine=None,  # Get all cuisines for variety
+                count=30  # Get many options
+            )
+            
+            if not all_restaurants:
+                warnings.append(f"No restaurants found for {request.destination}")
+                # Return empty meal plan
+                return self._create_empty_output(request, days, warnings)
+            
+            logger.info(f"✓ Retrieved {len(all_restaurants)} restaurants ({data_source})")
+            
+            # STEP 5: Convert to Restaurant objects and filter
+            restaurants = self._parse_restaurants(all_restaurants)
+            
+            # STEP 6: Filter by dietary restrictions
+            suitable_restaurants = self._filter_dietary_restrictions(
+                restaurants,
+                request.preferences.dietary_restrictions
+            )
+            
+            if not suitable_restaurants:
+                warnings.append("No restaurants match dietary restrictions, using all options")
+                suitable_restaurants = restaurants
+            
+            logger.info(f"✓ {len(suitable_restaurants)} restaurants after filtering")
+            
+            # STEP 7: Categorize by meal type
+            categorized = self._categorize_by_meal_type(suitable_restaurants)
+            
+            logger.info(
+                f"✓ Categorized: "
+                f"{len(categorized['breakfast'])} breakfast, "
+                f"{len(categorized['lunch'])} lunch, "
+                f"{len(categorized['dinner'])} dinner"
+            )
+            
+            # STEP 8: Generate day-by-day meal plan
+            meal_plan = self._generate_meal_plan(
+                start_date=request.start_date,
+                days=days,
+                travelers=travelers,
+                categorized_restaurants=categorized,
+                budget_per_meal=budget_per_meal,
+                hotel_has_breakfast=hotel_has_breakfast,
+                preferences=request.preferences
+            )
+            
+            # STEP 9: Calculate total cost
+            total_cost = sum(day.daily_cost for day in meal_plan)
+            daily_avg = total_cost / days if days > 0 else 0
+            
+            logger.info(f"💰 Total meal cost: Rp {total_cost:,.0f} (avg Rp {daily_avg:,.0f}/day)")
+            
+            # STEP 10: Check budget
+            food_budget_total = request.budget * 0.3  # 30% of total budget
+            if total_cost > food_budget_total * 1.2:
+                warnings.append(
+                    f"Estimated food cost (Rp {total_cost:,.0f}) exceeds recommended budget (Rp {food_budget_total:,.0f})"
+                )
+            
+            # STEP 11: Add dietary restriction note
+            if request.preferences.dietary_restrictions:
+                warnings.append(
+                    f"Filtered for dietary restrictions: {', '.join(request.preferences.dietary_restrictions)}"
+                )
+            
+            # STEP 12: Calculate confidence (convert to 0-1 range)
+            confidence_score = self._calculate_confidence(
+                data_source=data_source,
+                data_quality_score=100 if len(suitable_restaurants) >= 10 else 70
+            )
+            # Convert from 0-100 to 0-1
+            confidence = confidence_score / 100.0
+            
+            # STEP 13: Create output
+            output = DiningOutput(
+                restaurants=suitable_restaurants,  # All available restaurants
+                meal_plan=meal_plan,  # Day-by-day assignments
+                estimated_total_cost=total_cost,
+                estimated_daily_cost=daily_avg,
+                budget_breakdown=budget_per_meal,
+                warnings=warnings,
+                data_source=data_source,
+                confidence=confidence
+            )
+            
+            # Metadata
+            metadata = {
+                "data_source": data_source,
+                "confidence": confidence,
+                "warnings": warnings,
+                "restaurants_total": len(all_restaurants),
+                "restaurants_suitable": len(suitable_restaurants),
+                "days": days,
+                "hotel_has_breakfast": hotel_has_breakfast
+            }
+            
+            logger.info(f"✅ DiningAgent completed successfully")
+            
+            return output, metadata
         
-        # Parse restaurants
-        restaurants = []
+        except Exception as e:
+            logger.error(f"❌ DiningAgent failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+    
+    # ========================================
+    # HELPER METHODS
+    # ========================================
+    
+    def _calculate_days(self, start_date: date, end_date: date) -> int:
+        """Calculate number of days including last day"""
+        try:
+            return (end_date - start_date).days + 1
+        except Exception as e:
+            logger.error(f"Failed to calculate days: {e}")
+            return 1
+    
+    def _check_hotel_breakfast(self, context: Optional[Dict]) -> bool:
+        """Check if hotel includes breakfast"""
+        
+        if not context:
+            return False
+        
+        hotel_output: Optional[HotelOutput] = context.get("hotel_output")
+        if not hotel_output or not hotel_output.recommended_hotel:
+            return False
+        
+        hotel = hotel_output.recommended_hotel
+        amenities = [a.lower() for a in (hotel.amenities or [])]
+        
+        return "breakfast" in amenities
+    
+    def _calculate_meal_budgets(
+        self,
+        total_budget: float,
+        days: int,
+        travelers: int,
+        hotel_has_breakfast: bool
+    ) -> Dict[str, float]:
+        """
+        Calculate budget per meal type per person
+        
+        Strategy:
+        - 30% of total budget allocated to food
+        - If hotel has breakfast: redistribute to lunch & dinner
+        - Otherwise: 20% breakfast, 35% lunch, 45% dinner
+        """
+        
+        # Allocate 30% of total budget to food
+        food_budget_total = total_budget * 0.3
+        daily_food_budget = food_budget_total / days if days > 0 else 0
+        per_person_daily = daily_food_budget / travelers if travelers > 0 else 0
+        
+        if hotel_has_breakfast:
+            # No breakfast cost, redistribute
+            return {
+                "breakfast": 0.0,
+                "lunch": per_person_daily * 0.45,    # 45%
+                "dinner": per_person_daily * 0.55    # 55%
+            }
+        else:
+            return {
+                "breakfast": per_person_daily * 0.20,  # 20%
+                "lunch": per_person_daily * 0.35,      # 35%
+                "dinner": per_person_daily * 0.45      # 45%
+            }
+    
+    def _parse_restaurants(self, restaurants_data: List[Dict]) -> List[Restaurant]:
+        """Parse restaurant data to Restaurant objects"""
+        
+        parsed = []
+        
         for rest_data in restaurants_data:
             try:
-                # Check dietary restrictions
-                if not self._check_dietary_restrictions(
-                    rest_data, 
-                    request.preferences.dietary_restrictions
-                ):
-                    continue
+                # Infer meal types if not present
+                meal_types = rest_data.get("meal_type", [])
+                if not meal_types:
+                    meal_types = self._infer_meal_types(rest_data)
                 
                 restaurant = Restaurant(
                     name=rest_data.get("name", "Unknown Restaurant"),
                     cuisine=rest_data.get("cuisine", "International"),
                     description=rest_data.get("description", ""),
+                    address=rest_data.get("location") or rest_data.get("address"),
                     price_range=rest_data.get("price_range", "$$"),
-                    average_cost_per_person=rest_data.get("average_cost_per_person", 150000),
+                    average_cost_per_person=rest_data.get("average_cost_per_person") or 
+                                          rest_data.get("estimated_cost_per_person", 150000),
                     rating=rest_data.get("rating", 0.0),
                     specialties=rest_data.get("specialties", []),
                     dietary_options=rest_data.get("dietary_options", []),
-                    address=rest_data.get("location") or rest_data.get("address"),
-                    opening_hours=rest_data.get("opening_hours")
+                    opening_hours=rest_data.get("opening_hours"),
+                    meal_types=meal_types
                 )
-                restaurants.append(restaurant)
+                parsed.append(restaurant)
             
             except Exception as e:
-                self.logger.warning(f"Failed to parse restaurant: {e}")
+                logger.warning(f"Failed to parse restaurant: {e}")
+                continue
         
-        # Diversify restaurant selection
-        restaurants = self._diversify_restaurants(restaurants)
+        return parsed
+    
+    def _infer_meal_types(self, restaurant_data: Dict) -> List[str]:
+        """Infer suitable meal times from restaurant data"""
         
-        # Calculate estimated total cost for the entire trip
-        estimated_total_cost = self._estimate_total_trip_cost(
-            restaurants,
-            request.travelers,
-            days
-        )
+        cuisine = restaurant_data.get("cuisine", "").lower()
+        price_range = restaurant_data.get("price_range", "$$")
+        name = restaurant_data.get("name", "").lower()
         
-        # Check budget
-        if estimated_total_cost > food_budget_total * 1.2:
-            self._add_warning(
-                warnings,
-                f"Estimated food cost (Rp {estimated_total_cost:,.0f}) exceeds budget (Rp {food_budget_total:,.0f})",
-                "warning"
+        meal_types = []
+        
+        # Breakfast indicators
+        breakfast_keywords = ["cafe", "coffee", "breakfast", "bakery", "brunch"]
+        if any(word in cuisine or word in name for word in breakfast_keywords):
+            meal_types.append("breakfast")
+        
+        # Lunch (most restaurants except very expensive)
+        if price_range in ["$", "$$", "$$$"]:
+            meal_types.append("lunch")
+        
+        # Dinner (all except breakfast-only spots)
+        if not any(word in cuisine for word in ["cafe", "bakery"]):
+            meal_types.append("dinner")
+        
+        # Default to lunch & dinner if empty
+        return meal_types if meal_types else ["lunch", "dinner"]
+    
+    def _filter_dietary_restrictions(
+        self,
+        restaurants: List[Restaurant],
+        restrictions: List[str]
+    ) -> List[Restaurant]:
+        """Filter restaurants by dietary restrictions"""
+        
+        if not restrictions:
+            return restaurants
+        
+        suitable = []
+        
+        # Conflict keywords
+        conflicts = {
+            "vegetarian": ["steakhouse", "bbq", "meat", "seafood"],
+            "vegan": ["steakhouse", "bbq", "meat", "dairy", "cheese", "seafood"],
+            "halal": ["pork", "alcohol", "wine bar", "pub"],
+            "kosher": ["pork", "shellfish", "seafood"]
+        }
+        
+        for restaurant in restaurants:
+            is_suitable = True
+            restaurant_text = f"{restaurant.name} {restaurant.description} {restaurant.cuisine}".lower()
+            
+            for restriction in restrictions:
+                restriction_lower = restriction.lower()
+                
+                if restriction_lower in conflicts:
+                    for conflict_word in conflicts[restriction_lower]:
+                        if conflict_word in restaurant_text:
+                            is_suitable = False
+                            break
+                
+                if not is_suitable:
+                    break
+            
+            if is_suitable:
+                suitable.append(restaurant)
+        
+        return suitable
+    
+    def _categorize_by_meal_type(
+        self,
+        restaurants: List[Restaurant]
+    ) -> Dict[str, List[Restaurant]]:
+        """Categorize restaurants by suitable meal type"""
+        
+        categorized = {
+            "breakfast": [],
+            "lunch": [],
+            "dinner": []
+        }
+        
+        for restaurant in restaurants:
+            meal_types = restaurant.meal_types or []
+            
+            if "breakfast" in meal_types:
+                categorized["breakfast"].append(restaurant)
+            
+            if "lunch" in meal_types:
+                categorized["lunch"].append(restaurant)
+            
+            if "dinner" in meal_types:
+                categorized["dinner"].append(restaurant)
+        
+        return categorized
+    
+    def _generate_meal_plan(
+        self,
+        start_date: date,
+        days: int,
+        travelers: int,
+        categorized_restaurants: Dict[str, List[Restaurant]],
+        budget_per_meal: Dict[str, float],
+        hotel_has_breakfast: bool,
+        preferences
+    ) -> List[DailyMealPlan]:
+        """
+        Generate day-by-day meal assignments
+        
+        Strategy:
+        - Ensure variety (different cuisine each day)
+        - Respect budget per meal type
+        - Don't repeat restaurants
+        - Balance price ranges across trip
+        """
+        
+        meal_plan = []
+        used_restaurant_names: Set[str] = set()
+        
+        for day_num in range(1, days + 1):
+            current_date = start_date + timedelta(days=day_num - 1)
+            
+            # Initialize day meals
+            breakfast_rest = None
+            breakfast_notes = None
+            lunch_rest = None
+            dinner_rest = None
+            daily_cost = 0.0
+            
+            # BREAKFAST
+            if hotel_has_breakfast:
+                breakfast_notes = "Hotel breakfast included"
+                # No cost
+            else:
+                breakfast_rest = self._select_restaurant(
+                    candidates=categorized_restaurants["breakfast"],
+                    budget_per_person=budget_per_meal["breakfast"],
+                    used_names=used_restaurant_names,
+                    recent_cuisines=self._get_recent_cuisines(meal_plan, "breakfast", lookback=2),
+                    meal_type="breakfast"
+                )
+                if breakfast_rest:
+                    used_restaurant_names.add(breakfast_rest.name)
+                    daily_cost += breakfast_rest.average_cost_per_person * travelers
+            
+            # LUNCH
+            lunch_rest = self._select_restaurant(
+                candidates=categorized_restaurants["lunch"],
+                budget_per_person=budget_per_meal["lunch"],
+                used_names=used_restaurant_names,
+                recent_cuisines=self._get_recent_cuisines(meal_plan, "lunch", lookback=2),
+                meal_type="lunch"
             )
-        
-        # Add dietary restriction note if applicable
-        if request.preferences.dietary_restrictions:
-            self._add_warning(
-                warnings,
-                f"Filtered for dietary restrictions: {', '.join(request.preferences.dietary_restrictions)}",
-                "info"
+            if lunch_rest:
+                used_restaurant_names.add(lunch_rest.name)
+                daily_cost += lunch_rest.average_cost_per_person * travelers
+            
+            # DINNER
+            dinner_rest = self._select_restaurant(
+                candidates=categorized_restaurants["dinner"],
+                budget_per_person=budget_per_meal["dinner"],
+                used_names=used_restaurant_names,
+                recent_cuisines=self._get_recent_cuisines(meal_plan, "dinner", lookback=2),
+                meal_type="dinner"
             )
+            if dinner_rest:
+                used_restaurant_names.add(dinner_rest.name)
+                daily_cost += dinner_rest.average_cost_per_person * travelers
+            
+            # Create day meal plan
+            day_plan = DailyMealPlan(
+                day=day_num,
+                date=current_date,
+                breakfast=breakfast_rest,
+                breakfast_notes=breakfast_notes,
+                lunch=lunch_rest,
+                dinner=dinner_rest,
+                daily_cost=daily_cost,
+                notes=None
+            )
+            
+            meal_plan.append(day_plan)
         
-        # Calculate confidence
-        confidence = self._calculate_confidence(
-            source=data_source,
-            data_quality_score=100 if restaurants else 60
-        )
+        return meal_plan
+    
+    def _select_restaurant(
+        self,
+        candidates: List[Restaurant],
+        budget_per_person: float,
+        used_names: Set[str],
+        recent_cuisines: List[str],
+        meal_type: str
+    ) -> Optional[Restaurant]:
+        """
+        Smart restaurant selection with scoring
         
-        # Create output
+        Scoring factors:
+        - Within budget: +10 points
+        - High rating: +5 points
+        - Different cuisine from recent: +8 points
+        - Not previously used: required
+        - Value for money: +3 points
+        """
+        
+        scored = []
+        
+        for restaurant in candidates:
+            # Skip if already used
+            if restaurant.name in used_names:
+                continue
+            
+            # Skip if way over budget (allow 30% over)
+            cost = restaurant.average_cost_per_person
+            if cost > budget_per_person * 1.3:
+                continue
+            
+            # Calculate score
+            score = 0.0
+            
+            # Budget fit
+            if cost <= budget_per_person:
+                score += 10
+            elif cost <= budget_per_person * 1.15:
+                score += 5
+            
+            # Rating quality
+            rating = restaurant.rating or 0
+            score += rating  # 0-5 points
+            
+            # Cuisine variety (avoid repetition)
+            if restaurant.cuisine not in recent_cuisines:
+                score += 8
+            
+            # Value for money
+            if budget_per_person > 0 and rating > 0:
+                value_ratio = rating / (cost / budget_per_person)
+                score += min(value_ratio * 2, 3)
+            
+            scored.append((score, restaurant))
+        
+        # Sort by score (descending)
+        scored.sort(reverse=True, key=lambda x: x[0])
+        
+        # Return best match
+        if scored:
+            best_score, best_restaurant = scored[0]
+            logger.debug(
+                f"Selected {best_restaurant.name} for {meal_type} "
+                f"(score: {best_score:.1f}, cost: Rp {best_restaurant.average_cost_per_person:,.0f})"
+            )
+            return best_restaurant
+        
+        logger.warning(f"No suitable restaurant found for {meal_type}")
+        return None
+    
+    def _get_recent_cuisines(
+        self,
+        meal_plan: List[DailyMealPlan],
+        meal_type: str,
+        lookback: int = 2
+    ) -> List[str]:
+        """Get cuisines from recent days to avoid repetition"""
+        
+        recent = []
+        
+        for day in meal_plan[-lookback:]:
+            if meal_type == "breakfast" and day.breakfast:
+                recent.append(day.breakfast.cuisine)
+            elif meal_type == "lunch" and day.lunch:
+                recent.append(day.lunch.cuisine)
+            elif meal_type == "dinner" and day.dinner:
+                recent.append(day.dinner.cuisine)
+        
+        return recent
+    
+    def _create_empty_output(
+        self,
+        request: TripRequest,
+        days: int,
+        warnings: List
+    ) -> Tuple[DiningOutput, Dict]:
+        """Create empty output when no restaurants found"""
+        
+        meal_plan = []
+        start_date = request.start_date
+        
+        for day_num in range(1, days + 1):
+            current_date = start_date + timedelta(days=day_num - 1)
+            day_plan = DailyMealPlan(
+                day=day_num,
+                date=current_date,
+                breakfast=None,
+                lunch=None,
+                dinner=None,
+                daily_cost=0.0,
+                notes="No restaurants available"
+            )
+            meal_plan.append(day_plan)
+        
         output = DiningOutput(
-            restaurants=restaurants,
-            estimated_total_cost=estimated_total_cost,
+            restaurants=[],
+            meal_plan=meal_plan,
+            estimated_total_cost=0.0,
+            estimated_daily_cost=0.0,
+            budget_breakdown={"breakfast": 0, "lunch": 0, "dinner": 0},
             warnings=warnings,
-            data_source=data_source,
-            confidence=confidence
+            data_source="seed",
+            confidence=0.0
         )
         
-        # Metadata
         metadata = {
-            "data_source": data_source,
-            "confidence": confidence,
+            "data_source": "seed",
+            "confidence": 0.0,
             "warnings": warnings,
-            "restaurants_count": len(restaurants),
-            "daily_budget": daily_food_budget,
-            "execution_time_ms": 0  # Will be set by orchestrator if needed
+            "restaurants_total": 0,
+            "restaurants_suitable": 0,
+            "days": days
         }
         
         return output, metadata
-    
-    def _calculate_days(self, start_date: date, end_date: date) -> int:
-        """
-        Calculate number of days in trip
-        
-        FIXED: Accept date objects directly instead of strings
-        
-        Args:
-            start_date: Trip start date (date object)
-            end_date: Trip end date (date object)
-            
-        Returns:
-            Number of days including last day
-        """
-        try:
-            # Direct date arithmetic
-            return (end_date - start_date).days + 1  # Include last day
-        except Exception as e:
-            self.logger.error(f"Failed to calculate days: {e}")
-            return 1
-    
-    def _extract_cuisine_preference(self, interests: List[str]) -> Optional[str]:
-        """Extract cuisine preference from interests"""
-        cuisine_keywords = {
-            "food": None,
-            "cuisine": None,
-            "culinary": None,
-            "dining": None,
-            "italian": "italian",
-            "french": "french",
-            "japanese": "japanese",
-            "chinese": "chinese",
-            "indian": "indian",
-            "thai": "thai",
-            "mexican": "mexican"
-        }
-        
-        for interest in interests:
-            interest_lower = interest.lower()
-            for keyword, cuisine in cuisine_keywords.items():
-                if keyword in interest_lower:
-                    return cuisine
-        
-        return None
-    
-    def _check_dietary_restrictions(
-        self, 
-        restaurant_data: Dict, 
-        restrictions: List[str]
-    ) -> bool:
-        """
-        Check if restaurant accommodates dietary restrictions
-        
-        For now, simple keyword check. In production, would need better logic.
-        """
-        if not restrictions:
-            return True
-        
-        # Simple heuristic: skip restaurants with conflicting keywords
-        restaurant_text = f"{restaurant_data.get('name', '')} {restaurant_data.get('description', '')} {restaurant_data.get('cuisine', '')}".lower()
-        
-        conflicts = {
-            "vegetarian": ["steakhouse", "bbq", "meat"],
-            "vegan": ["steakhouse", "bbq", "meat", "dairy", "cheese"],
-            "halal": ["pork", "alcohol", "wine bar"],
-            "kosher": ["pork", "shellfish"]
-        }
-        
-        for restriction in restrictions:
-            restriction_lower = restriction.lower()
-            if restriction_lower in conflicts:
-                for conflict_word in conflicts[restriction_lower]:
-                    if conflict_word in restaurant_text:
-                        return False
-        
-        return True
-    
-    def _diversify_restaurants(self, restaurants: List[Restaurant]) -> List[Restaurant]:
-        """
-        Diversify restaurant selection by cuisine and price range
-        
-        Returns:
-            Diversified list (max 6 restaurants)
-        """
-        if len(restaurants) <= 6:
-            return restaurants
-        
-        # Group by cuisine
-        cuisine_groups = {}
-        for rest in restaurants:
-            cuisine = rest.cuisine
-            if cuisine not in cuisine_groups:
-                cuisine_groups[cuisine] = []
-            cuisine_groups[cuisine].append(rest)
-        
-        # Pick top restaurant from each cuisine
-        diverse_list = []
-        for cuisine, group in cuisine_groups.items():
-            # Sort by rating
-            group_sorted = sorted(group, key=lambda x: x.rating or 0, reverse=True)
-            diverse_list.append(group_sorted[0])
-            
-            if len(diverse_list) >= 6:
-                break
-        
-        # Fill remaining slots with highest-rated
-        if len(diverse_list) < 6:
-            remaining = [r for r in restaurants if r not in diverse_list]
-            remaining_sorted = sorted(remaining, key=lambda x: x.rating or 0, reverse=True)
-            diverse_list.extend(remaining_sorted[:6 - len(diverse_list)])
-        
-        return diverse_list[:6]
-    
-    def _estimate_total_trip_cost(
-        self, 
-        restaurants: List[Restaurant],
-        travelers: int,
-        days: int
-    ) -> float:
-        """
-        Estimate total food cost for entire trip
-        
-        Args:
-            restaurants: List of available restaurants
-            travelers: Number of travelers
-            days: Number of days
-            
-        Returns:
-            Total estimated cost for all meals for all travelers for entire trip
-        """
-        if not restaurants:
-            return 0.0
-        
-        # Calculate average cost per meal
-        total_cost = sum(r.average_cost_per_person for r in restaurants)
-        avg_cost_per_meal = total_cost / len(restaurants) if restaurants else 0
-        
-        # 3 meals per day per person for all days
-        total_meals = 3 * travelers * days
-        
-        return avg_cost_per_meal * total_meals

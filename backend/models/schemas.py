@@ -1,10 +1,10 @@
 """
 Pydantic schemas for TripCraft Lite
-Defines all data structures with strict validation
+FIXED: Removed circular references that caused RecursionError
 """
 
-from pydantic import BaseModel, Field, validator
-from typing import List, Optional, Literal, Dict, Any
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 from enum import Enum
 
@@ -15,10 +15,10 @@ from enum import Enum
 
 class TripPreferences(BaseModel):
     """User preferences for trip planning"""
-    accommodation: Literal["budget", "mid-range", "luxury"] = "mid-range"
+    accommodation: str = Field(default="mid-range", pattern="^(budget|mid-range|luxury)$")
     interests: List[str] = Field(default_factory=list, description="e.g., ['culture', 'food', 'nature']")
     dietary_restrictions: List[str] = Field(default_factory=list, description="e.g., ['vegetarian', 'halal']")
-    pace: Literal["relaxed", "moderate", "packed"] = "moderate"
+    pace: str = Field(default="moderate", pattern="^(relaxed|moderate|packed)$")
 
 
 class TripRequest(BaseModel):
@@ -31,9 +31,10 @@ class TripRequest(BaseModel):
     travelers: int = Field(default=1, ge=1, le=20)
     preferences: TripPreferences = Field(default_factory=TripPreferences)
     
-    @validator('end_date')
-    def end_after_start(cls, v, values):
-        if 'start_date' in values and v <= values['start_date']:
+    @field_validator('end_date')
+    @classmethod
+    def end_after_start(cls, v, info):
+        if 'start_date' in info.data and v <= info.data['start_date']:
             raise ValueError('end_date must be after start_date')
         return v
     
@@ -52,11 +53,11 @@ class Attraction(BaseModel):
     type: str = Field(..., description="e.g., 'museum', 'temple', 'park', 'beach'")
     description: str
     address: Optional[str] = None
-    coordinates: Optional[Dict[str, float]] = None  # {"lat": -8.65, "lon": 115.22}
+    coordinates: Optional[Dict[str, float]] = None
     opening_hours: Optional[str] = None
     entrance_fee: Optional[float] = Field(None, description="Fee in IDR, 0 if free")
     estimated_duration_hours: float = Field(default=2.0)
-    image: Optional[Dict[str, Any]] = None  # Will be populated by image service
+    image: Optional[Dict[str, Any]] = None
 
 
 class DestinationInfo(BaseModel):
@@ -77,12 +78,12 @@ class DestinationOutput(BaseModel):
     attractions: List[Attraction]
     local_tips: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
-    data_source: Literal["api", "seed", "llm_fallback"]
+    data_source: str
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
 # ============================================================================
-# DINING MODELS
+# DINING MODELS (FIXED - No circular refs!)
 # ============================================================================
 
 class Restaurant(BaseModel):
@@ -91,21 +92,44 @@ class Restaurant(BaseModel):
     cuisine: str = Field(..., description="e.g., 'Indonesian', 'Italian', 'Seafood'")
     description: str
     address: Optional[str] = None
-    price_range: Literal["$", "$$", "$$$", "$$$$"] = "$$"
+    price_range: str = Field(default="$$", pattern=r"^(\$|\$\$|\$\$\$|\$\$\$\$)$")
     average_cost_per_person: float = Field(..., description="Average meal cost in IDR")
     rating: Optional[float] = Field(None, ge=0.0, le=5.0)
     specialties: List[str] = Field(default_factory=list)
-    dietary_options: List[str] = Field(default_factory=list, description="e.g., ['vegetarian', 'halal']")
+    dietary_options: List[str] = Field(default_factory=list)
     opening_hours: Optional[str] = None
+    meal_types: List[str] = Field(default_factory=list)
     image: Optional[Dict[str, Any]] = None
+    
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class DailyMealPlan(BaseModel):
+    """Meal plan for one day"""
+    day: int = Field(..., ge=1)
+    date: date
+    breakfast: Optional[Restaurant] = None
+    breakfast_notes: Optional[str] = None
+    lunch: Optional[Restaurant] = None
+    dinner: Optional[Restaurant] = None
+    daily_cost: float = Field(default=0.0)
+    notes: Optional[str] = None
+    
+    model_config = {"arbitrary_types_allowed": True}
 
 
 class DiningOutput(BaseModel):
     """Output from Dining Agent"""
     restaurants: List[Restaurant]
-    estimated_total_cost: float = Field(..., description="Total dining cost for trip in IDR")
+    meal_plan: List[DailyMealPlan]
+    estimated_total_cost: float
+    estimated_daily_cost: float
+    budget_breakdown: Dict[str, float] = Field(default_factory=dict)
     warnings: List[str] = Field(default_factory=list)
-    data_source: Literal["api", "seed", "llm_fallback"]
+    data_source: str
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    
+    model_config = {"arbitrary_types_allowed": True}
 
 
 # ============================================================================
@@ -115,24 +139,25 @@ class DiningOutput(BaseModel):
 class Hotel(BaseModel):
     """Hotel accommodation option"""
     name: str
-    type: Literal["hotel", "hostel", "resort", "villa", "guesthouse"] = "hotel"
+    type: str = Field(default="hotel", pattern="^(hotel|hostel|resort|villa|guesthouse)$")
     description: str
     address: Optional[str] = None
     price_per_night: float = Field(..., description="Price in IDR")
     rating: Optional[float] = Field(None, ge=0.0, le=5.0)
-    amenities: List[str] = Field(default_factory=list, description="e.g., ['wifi', 'pool', 'breakfast']")
+    amenities: List[str] = Field(default_factory=list)
     distance_to_center_km: Optional[float] = None
-    room_type: Optional[str] = Field(None, description="e.g., 'Standard Room', 'Deluxe Suite'")
+    room_type: Optional[str] = None
     image: Optional[Dict[str, Any]] = None
 
 
 class HotelOutput(BaseModel):
     """Output from Hotel Agent"""
     hotels: List[Hotel]
-    recommended_hotel: Optional[Hotel] = None  # Top pick
-    total_accommodation_cost: float = Field(..., description="Total cost for all nights in IDR")
+    recommended_hotel: Optional[Hotel] = None
+    total_accommodation_cost: float
     warnings: List[str] = Field(default_factory=list)
-    data_source: Literal["api", "seed", "llm_fallback"]
+    data_source: str
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
 # ============================================================================
@@ -148,9 +173,9 @@ class Flight(BaseModel):
     departure_time: datetime
     arrival_time: datetime
     duration_hours: float
-    price: float = Field(..., description="Price in IDR")
+    price: float
     stops: int = Field(default=0, ge=0)
-    cabin_class: Literal["economy", "business", "first"] = "economy"
+    cabin_class: str = Field(default="economy", pattern="^(economy|business|first)$")
 
 
 class FlightOutput(BaseModel):
@@ -159,9 +184,11 @@ class FlightOutput(BaseModel):
     return_flights: List[Flight]
     recommended_outbound: Optional[Flight] = None
     recommended_return: Optional[Flight] = None
-    total_flight_cost: float = Field(..., description="Round-trip cost in IDR")
+    total_flight_cost: float
     warnings: List[str] = Field(default_factory=list)
-    data_source: Literal["api", "seed", "llm_fallback"]
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    data_source: str
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
 # ============================================================================
@@ -170,36 +197,24 @@ class FlightOutput(BaseModel):
 
 class BudgetBreakdown(BaseModel):
     """Detailed budget breakdown"""
-    flights: float = 0.0
     accommodation: float = 0.0
-    dining: float = 0.0
-    attractions: float = 0.0
+    flights: float = 0.0
+    food: float = 0.0
+    activities: float = 0.0
     transportation_local: float = 0.0
     miscellaneous: float = 0.0
-    emergency_buffer: float = 0.0
-    
-    @property
-    def total(self) -> float:
-        return (
-            self.flights + 
-            self.accommodation + 
-            self.dining + 
-            self.attractions + 
-            self.transportation_local + 
-            self.miscellaneous + 
-            self.emergency_buffer
-        )
+    total: float = 0.0
+    remaining: float = 0.0
 
 
 class BudgetOutput(BaseModel):
     """Output from Budget Agent"""
-    total_budget: float
     breakdown: BudgetBreakdown
-    remaining_budget: float
-    is_over_budget: bool
-    budget_utilization_percent: float
+    is_within_budget: bool
+    suggestions: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
-    recommendations: List[str] = Field(default_factory=list)
+    data_source: str = "seed"
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
 # ============================================================================
@@ -208,13 +223,13 @@ class BudgetOutput(BaseModel):
 
 class Activity(BaseModel):
     """Single activity in itinerary"""
-    time: str = Field(..., description="Time in HH:MM format")
+    time: str
     name: str
-    type: Literal["attraction", "dining", "hotel", "transport", "free_time"]
+    type: str
     location: str
     description: str
     duration_hours: float
-    estimated_cost: float = Field(default=0.0, description="Cost in IDR")
+    estimated_cost: float = Field(default=0.0)
     notes: Optional[str] = None
     image: Optional[Dict[str, Any]] = None
 
@@ -223,7 +238,7 @@ class DayItinerary(BaseModel):
     """Itinerary for a single day"""
     day_number: int = Field(..., ge=1)
     date: date
-    title: str = Field(..., description="e.g., 'Explore Cultural Sites'")
+    title: str
     activities: List[Activity]
     total_estimated_cost: float = Field(default=0.0)
     notes: Optional[str] = None
@@ -233,7 +248,7 @@ class ItineraryOutput(BaseModel):
     """Output from Itinerary Agent"""
     days: List[DayItinerary]
     total_activities: int
-    overview: str = Field(..., description="Brief summary of the trip")
+    overview: str
     tips: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
 
@@ -244,18 +259,21 @@ class ItineraryOutput(BaseModel):
 
 class ValidationIssue(BaseModel):
     """Single validation issue found"""
-    severity: Literal["error", "warning", "info"]
-    category: str = Field(..., description="e.g., 'budget', 'schedule', 'feasibility'")
+    severity: str
+    component: str
     message: str
-    affected_items: List[str] = Field(default_factory=list)
+    suggestion: str
 
 
 class VerificationOutput(BaseModel):
     """Output from Verifier Agent"""
     is_valid: bool
     issues: List[ValidationIssue]
-    score: float = Field(..., ge=0.0, le=100.0, description="Quality score 0-100")
+    quality_score: float = Field(..., ge=0.0, le=100.0)
     summary: str
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    data_source: str = "seed"
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
 # ============================================================================
@@ -291,7 +309,7 @@ class TripResponse(BaseModel):
     trip_id: str
     trace_id: str
     status: TripStatus
-    progress: Optional[Dict[str, str]] = None  # {"destination": "completed", "dining": "processing"}
+    progress: Optional[Dict[str, str]] = None
     result: Optional[CompleteTripPlan] = None
     error: Optional[str] = None
     created_at: datetime
@@ -305,7 +323,7 @@ class TripResponse(BaseModel):
 class ImageData(BaseModel):
     """Image metadata"""
     url: str
-    source: Literal["unsplash", "pexels", "placeholder"]
+    source: str
     confidence: float = Field(..., ge=0.0, le=1.0)
     description: Optional[str] = None
     photographer: Optional[str] = None
