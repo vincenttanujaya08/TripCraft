@@ -277,6 +277,30 @@ class VerificationOutput(BaseModel):
 
 
 # ============================================================================
+# GROUND TRANSPORT MODELS
+# ============================================================================
+
+class GroundTransportOption(BaseModel):
+    """Ground transport option (train/bus/ferry)"""
+    transport_type: str = Field(..., description="train/bus/ferry")
+    name: str
+    operator: Optional[str] = None
+    cost_per_person: float
+    duration_hours: float
+    frequency: Optional[str] = None
+    class_available: List[str] = Field(default_factory=list)
+
+
+class GroundTransportRoute(BaseModel):
+    """Ground transport route between two cities"""
+    origin: str
+    destination: str
+    options: List[GroundTransportOption]
+    cheapest_option: GroundTransportOption
+    recommended: bool = Field(default=False, description="Recommended over flight?")
+
+
+# ============================================================================
 # COMPLETE TRIP MODELS
 # ============================================================================
 

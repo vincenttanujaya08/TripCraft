@@ -338,6 +338,37 @@ class SmartRetriever:
         logger.error(f"✗ All tiers failed for flights {origin} → {destination}")
         return [], "llm_fallback"
     
+    def get_ground_transport(
+        self,
+        origin: str,
+        destination: str
+    ) -> Tuple[Optional[Dict], DataSource]:
+        """
+        Get ground transport options (train/bus/ferry)
+        
+        Uses hardcoded database for Indonesian routes
+        
+        Args:
+            origin: Origin city
+            destination: Destination city
+            
+        Returns:
+            (transport_data, data_source)
+        """
+        
+        from backend.constants.ground_transport import get_ground_transport
+        
+        logger.info(f"🚂 Checking ground transport: {origin} → {destination}")
+        
+        transport_data = get_ground_transport(origin, destination)
+        
+        if transport_data:
+            logger.info(f"✓ Found ground transport options: {list(transport_data.keys())}")
+            return transport_data, "seed"
+        
+        logger.info(f"✗ No ground transport available for this route")
+        return None, "seed"
+    
     def _get_airline_code(self, airline_name: str) -> str:
         """Map airline name to 2-letter code"""
         code_map = {

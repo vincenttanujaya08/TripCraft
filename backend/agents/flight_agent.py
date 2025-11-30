@@ -1,13 +1,15 @@
 """
-Flight Agent - Fixed version with cabin_class mapping
+FlightAgent - UPDATED with budget allocation and ground transport fallback
 """
 import logging
-from datetime import datetime
-from typing import List, Optional
+from datetime import datetime, date
+from typing import List, Optional, Tuple, Dict, Any
 from models.schemas import (
     TripRequest, 
     FlightOutput, 
     Flight,
+    GroundTransportOption,
+    GroundTransportRoute
 )
 from agents.base_agent import BaseAgent
 from data_sources.smart_retriever import SmartRetriever
@@ -16,22 +18,14 @@ logger = logging.getLogger(f"agent.Flight")
 
 
 class FlightAgent(BaseAgent):
-    """Agent responsible for finding flight options"""
+    """Agent responsible for finding flight options with budget awareness"""
     
     def __init__(self, retriever: SmartRetriever):
         super().__init__("Flight")
         self.retriever = retriever
     
     def _map_accommodation_to_cabin(self, accommodation: str) -> str:
-        """
-        Map accommodation preference to flight cabin class
-        
-        Args:
-            accommodation: budget/mid-range/luxury
-            
-        Returns:
-            cabin class: economy/business/first
-        """
+        """Map accommodation preference to flight cabin class"""
         mapping = {
             'budget': 'economy',
             'mid-range': 'economy',
@@ -39,19 +33,35 @@ class FlightAgent(BaseAgent):
             'premium': 'first'
         }
         return mapping.get(accommodation.lower(), 'economy')
-        
-    async def execute(self, request: TripRequest) -> FlightOutput:
+    
+    async def execute(
+        self, 
+        request: TripRequest,
+        max_budget: Optional[float] = None
+    ) -> FlightOutput:
         """
-        Find suitable flights using Amadeus API (or fallback)
+        Find suitable flights with budget constraints
+        
+        NEW: Added max_budget parameter and ground transport fallback
         
         Args:
             request: Trip planning request
+            max_budget: Maximum budget allocated for flights (optional)
             
         Returns:
-            FlightOutput with flight options
+            FlightOutput with flight options and warnings
         """
         self.logger.info("🚀 Flight agent starting...")
         start_time = datetime.now()
+        
+        warnings = []
+        
+        # Calculate budget if provided
+        if max_budget:
+            per_person_budget = max_budget / request.travelers
+            self.logger.info(f"💰 Flight budget: Rp {max_budget:,.0f} (Rp {per_person_budget:,.0f}/person)")
+        else:
+            per_person_budget = None
         
         try:
             # Map accommodation to cabin class
@@ -59,30 +69,23 @@ class FlightAgent(BaseAgent):
                 request.preferences.accommodation
             )
             
-            # Retrieve flight options from SmartRetriever
+            # TIER 1: Try flights via SmartRetriever
             flights_data, data_source = await self.retriever.get_flights(
                 origin=request.origin or "Jakarta",
                 destination=request.destination,
                 departure_date=request.start_date,
                 return_date=request.end_date,
                 travelers=request.travelers,
-                travel_class=cabin_class  # Use mapped cabin class
+                travel_class=cabin_class
             )
             
             if not flights_data:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
                 self.logger.error(f"✗ Flight failed after {duration:.0f}ms: No flights found")
                 
-                return FlightOutput(
-                    outbound_flights=[],
-                    return_flights=[],
-                    recommended_outbound=None,
-                    recommended_return=None,
-                    total_flight_cost=0.0,
-                    warnings=[f"No flights found for {request.origin} → {request.destination}"],
-                    metadata=self._create_metadata(data_source, duration),
-                    data_source=data_source,
-                    confidence=0
+                # FALLBACK: Check ground transport
+                return await self._try_ground_transport_fallback(
+                    request, warnings, data_source, duration
                 )
             
             # Parse flights
@@ -90,18 +93,8 @@ class FlightAgent(BaseAgent):
             
             if not valid_flights:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
-                self.logger.error(f"✗ Flight failed after {duration:.0f}ms: No valid flights")
-                
-                return FlightOutput(
-                    outbound_flights=[],
-                    return_flights=[],
-                    recommended_outbound=None,
-                    recommended_return=None,
-                    total_flight_cost=0.0,
-                    warnings=[f"No valid flights found for route"],
-                    metadata=self._create_metadata(data_source, duration),
-                    data_source=data_source,
-                    confidence=0
+                return await self._try_ground_transport_fallback(
+                    request, warnings, data_source, duration
                 )
             
             # Separate outbound and return flights
@@ -118,13 +111,13 @@ class FlightAgent(BaseAgent):
                 else:
                     outbound_flights.append(flight)
             
-            # If no return flights, generate them
+            # Generate return flights if missing
             if outbound_flights and not return_flights:
                 for outbound in outbound_flights[:3]:
                     return_flight = self._generate_return_flight(outbound, request)
                     return_flights.append(return_flight)
             
-            # Sort by price and convenience
+            # Sort by price
             outbound_flights.sort(key=lambda f: (f.price, f.duration_hours))
             return_flights.sort(key=lambda f: (f.price, f.duration_hours))
             
@@ -132,7 +125,7 @@ class FlightAgent(BaseAgent):
             selected_outbound = outbound_flights[:3]
             selected_return = return_flights[:3]
             
-            # Recommend best options
+            # Recommend cheapest
             recommended_out = selected_outbound[0] if selected_outbound else None
             recommended_ret = selected_return[0] if selected_return else None
             
@@ -143,14 +136,48 @@ class FlightAgent(BaseAgent):
             if recommended_ret:
                 total_cost += recommended_ret.price * request.travelers
             
+            # CHECK BUDGET
+            if max_budget and total_cost > max_budget:
+                over_amount = total_cost - max_budget
+                over_pct = (over_amount / max_budget) * 100
+                
+                self.logger.warning(
+                    f"⚠️ Flight over budget: Rp {total_cost:,.0f} > Rp {max_budget:,.0f} "
+                    f"(+{over_pct:.1f}%)"
+                )
+                
+                # Check if ground transport is viable
+                ground_data, _ = self.retriever.get_ground_transport(
+                    origin=request.origin or "Jakarta",
+                    destination=request.destination
+                )
+                
+                if ground_data:
+                    from constants.ground_transport import get_cheapest_option
+                    cheapest = get_cheapest_option(
+                        request.origin or "Jakarta",
+                        request.destination
+                    )
+                    
+                    if cheapest:
+                        warnings.append(
+                            f"⚠️ Flight exceeds budget by Rp {over_amount:,.0f} ({over_pct:.1f}%). "
+                            f"Consider {cheapest['transport_type']}: Rp {cheapest['cost_per_person']:,.0f}/person "
+                            f"({cheapest['duration_hours']}h)"
+                        )
+                else:
+                    warnings.append(
+                        f"⚠️ Flight exceeds budget by Rp {over_amount:,.0f} ({over_pct:.1f}%). "
+                        f"Options: 1) Increase total budget, 2) Change dates, 3) Reduce hotel budget"
+                    )
+            
             # Calculate confidence
             confidence = self._calculate_confidence(
                 source=data_source,
                 data_quality_score=(len(selected_outbound) + len(selected_return)) * 10
             )
             
-            # Warnings
-            warnings = []
+            # Data source warnings
             if data_source == "seed":
                 warnings.append("Using fallback flight data - prices may not be current")
             elif data_source == "llm_fallback":
@@ -178,6 +205,55 @@ class FlightAgent(BaseAgent):
             duration = (datetime.now() - start_time).total_seconds() * 1000
             self.logger.error(f"✗ Flight failed after {duration:.0f}ms: {e}")
             raise
+    
+    async def _try_ground_transport_fallback(
+        self,
+        request: TripRequest,
+        warnings: List[str],
+        data_source: str,
+        duration: float
+    ) -> FlightOutput:
+        """
+        Fallback to ground transport if flights not available/too expensive
+        """
+        
+        self.logger.info("🚂 Checking ground transport as fallback...")
+        
+        ground_data, _ = self.retriever.get_ground_transport(
+            origin=request.origin or "Jakarta",
+            destination=request.destination
+        )
+        
+        if ground_data:
+            from constants.ground_transport import get_cheapest_option
+            cheapest = get_cheapest_option(
+                request.origin or "Jakarta",
+                request.destination
+            )
+            
+            if cheapest:
+                warnings.append(
+                    f"✈️ No flights found. Alternative: {cheapest['transport_type'].title()} "
+                    f"({cheapest['name']}) - Rp {cheapest['cost_per_person']:,.0f}/person "
+                    f"({cheapest['duration_hours']}h). Contact travel agent to book."
+                )
+        else:
+            warnings.append(
+                f"No flights or ground transport found for {request.origin} → {request.destination}. "
+                f"This route may not be directly accessible."
+            )
+        
+        return FlightOutput(
+            outbound_flights=[],
+            return_flights=[],
+            recommended_outbound=None,
+            recommended_return=None,
+            total_flight_cost=0.0,
+            warnings=warnings,
+            metadata=self._create_metadata(data_source, duration),
+            data_source=data_source,
+            confidence=0.0
+        )
     
     def _parse_flights(self, flights_data: List[dict], request: TripRequest) -> List[Flight]:
         """Parse flight data to Flight objects"""
