@@ -128,12 +128,28 @@ class TripOrchestrator:
     - Progress tracking
     """
     
-    def __init__(self):
-        """Initialize orchestrator and all agents"""
+    def __init__(self, retriever=None):
+        """
+        Initialize orchestrator and all agents
+        
+        Args:
+            retriever: SmartRetriever instance (optional, will create if not provided)
+        """
+        # Import here to avoid circular imports
+        from backend.data_sources.smart_retriever import SmartRetriever
+        
+        # Create or use provided retriever
+        if retriever is None:
+            retriever = SmartRetriever()
+            logger.info("Created new SmartRetriever instance")
+        
+        self.retriever = retriever
+        
+        # Initialize all agents with proper dependencies
         self.destination_agent = DestinationAgent()
-        self.flight_agent = FlightAgent()
-        self.hotel_agent = HotelAgent()
-        self.dining_agent = DiningAgent()
+        self.flight_agent = FlightAgent(retriever=self.retriever)
+        self.hotel_agent = HotelAgent(retriever=self.retriever)
+        self.dining_agent = DiningAgent(retriever=self.retriever)
         self.budget_agent = BudgetAgent()
         self.itinerary_agent = ItineraryAgent()
         self.verifier_agent = VerifierAgent()

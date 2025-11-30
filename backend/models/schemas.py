@@ -9,6 +9,7 @@ from datetime import date, datetime
 from enum import Enum
 
 
+
 # ============================================================================
 # REQUEST MODELS
 # ============================================================================
@@ -353,3 +354,141 @@ class ImageData(BaseModel):
     photographer: Optional[str] = None
     is_generic: bool = False
     validated: bool = False
+
+
+
+"""
+ADD THIS TO: backend/models/schemas.py
+
+Location: Add at the END of the file (after all other Output models)
+
+This defines the TripPlan model - the final aggregated output from TripOrchestrator
+"""
+
+
+
+# ============================================================
+# FINAL TRIP PLAN (Orchestrator Output)
+# ============================================================
+
+class TripPlan(BaseModel):
+    """
+    Complete trip plan aggregating all agent outputs
+    
+    This is the final output from TripOrchestrator that contains:
+    - All agent outputs (destination, flights, hotels, dining, budget, itinerary, verification)
+    - Overall confidence score
+    - Aggregated warnings
+    """
+    
+    # All agent outputs
+    destination: "DestinationOutput" = Field(
+        ...,
+        description="Destination information and attractions"
+    )
+    
+    flights: "FlightOutput" = Field(
+        ...,
+        description="Flight options and recommendations"
+    )
+    
+    hotels: "HotelOutput" = Field(
+        ...,
+        description="Hotel options and recommendations"
+    )
+    
+    dining: "DiningOutput" = Field(
+        ...,
+        description="Dining recommendations and meal plans"
+    )
+    
+    budget: "BudgetOutput" = Field(
+        ...,
+        description="Budget breakdown and analysis"
+    )
+    
+    itinerary: "ItineraryOutput" = Field(
+        ...,
+        description="Day-by-day itinerary"
+    )
+    
+    verification: "VerificationOutput" = Field(
+        ...,
+        description="Verification results and validation"
+    )
+    
+    # Aggregated metrics
+    overall_confidence: float = Field(
+        ...,
+        ge=0,
+        le=1,
+        description="Overall confidence score (weighted average of all agents)"
+    )
+    
+    warnings: List[str] = Field(
+        default_factory=list,
+        description="Aggregated warnings from all agents"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "destination": {
+                    "destination": "Bali",
+                    "attractions": [],
+                    "recommended_duration_days": 4,
+                    "confidence": 0.9,
+                    "warnings": []
+                },
+                "flights": {
+                    "origin": "Jakarta",
+                    "destination": "Bali",
+                    "outbound_flights": [],
+                    "return_flights": [],
+                    "total_cost": 15000000,
+                    "confidence": 0.85,
+                    "warnings": []
+                },
+                "hotels": {
+                    "location": "Bali",
+                    "hotels": [],
+                    "recommended_hotel": {},
+                    "total_cost": 10000000,
+                    "confidence": 0.88,
+                    "warnings": []
+                },
+                "dining": {
+                    "location": "Bali",
+                    "restaurants": [],
+                    "meal_plan": [],
+                    "estimated_total_cost": 2000000,
+                    "confidence": 0.92,
+                    "warnings": []
+                },
+                "budget": {
+                    "budget_allocated": 30000000,
+                    "total_cost": 27000000,
+                    "remaining_budget": 3000000,
+                    "within_budget": True,
+                    "breakdown": {},
+                    "confidence": 0.85,
+                    "warnings": []
+                },
+                "itinerary": {
+                    "destination": "Bali",
+                    "daily_itineraries": [],
+                    "confidence": 0.87,
+                    "warnings": []
+                },
+                "verification": {
+                    "is_valid": True,
+                    "overall_score": 8.5,
+                    "checks": [],
+                    "recommendations": []
+                },
+                "overall_confidence": 0.878,
+                "warnings": []
+            }
+        }
+
+
