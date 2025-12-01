@@ -1,9 +1,10 @@
 """
 Verifier Agent - Validates and checks trip plan quality
+FIXED: Removed retriever parameter (not used), updated execute() to use context
 """
 import logging
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 from backend.models.schemas import (
     TripRequest,
     VerificationOutput,
@@ -16,7 +17,6 @@ from backend.models.schemas import (
     ItineraryOutput,
 )
 from backend.agents.base_agent import BaseAgent
-from backend.data_sources.smart_retriever import SmartRetriever
 
 logger = logging.getLogger(f"agent.Verifier")
 
@@ -24,36 +24,35 @@ logger = logging.getLogger(f"agent.Verifier")
 class VerifierAgent(BaseAgent):
     """Agent responsible for verifying trip plan quality and completeness"""
     
-    def __init__(self, retriever: SmartRetriever):
-        super().__init__("Verifier", retriever)
+    def __init__(self):
+        """Initialize VerifierAgent - no retriever needed"""
+        super().__init__("Verifier")
         
     async def execute(
         self,
         request: TripRequest,
-        destination_output: DestinationOutput = None,
-        hotel_output: HotelOutput = None,
-        dining_output: DiningOutput = None,
-        flight_output: FlightOutput = None,
-        budget_output: BudgetOutput = None,
-        itinerary_output: ItineraryOutput = None
-    ) -> VerificationOutput:
+        context: Optional[Dict] = None
+    ) -> Tuple[VerificationOutput, Dict]:
         """
         Verify and validate the complete trip plan
         
         Args:
             request: Trip planning request
-            destination_output: Output from destination agent
-            hotel_output: Output from hotel agent
-            dining_output: Output from dining agent
-            flight_output: Output from flight agent
-            budget_output: Output from budget agent
-            itinerary_output: Output from itinerary agent
+            context: Context dictionary with all agent outputs
             
         Returns:
-            VerificationOutput with validation results
+            (VerificationOutput, metadata)
         """
         self.logger.info("🚀 Verifier agent starting...")
         start_time = datetime.now()
+        
+        # Extract outputs from context
+        destination_output: Optional[DestinationOutput] = context.get('destination_output') if context else None
+        hotel_output: Optional[HotelOutput] = context.get('hotel_output') if context else None
+        dining_output: Optional[DiningOutput] = context.get('dining_output') if context else None
+        flight_output: Optional[FlightOutput] = context.get('flight_output') if context else None
+        budget_output: Optional[BudgetOutput] = context.get('budget_output') if context else None
+        itinerary_output: Optional[ItineraryOutput] = context.get('itinerary_output') if context else None
         
         try:
             issues: List[ValidationIssue] = []
@@ -66,7 +65,7 @@ class VerifierAgent(BaseAgent):
                     message="No destination information available",
                     suggestion="Ensure destination agent completed successfully"
                 ))
-            elif not destination_output.destination.attractions:
+            elif not destination_output.attractions:
                 issues.append(ValidationIssue(
                     severity="warning",
                     component="destination",
@@ -123,13 +122,9 @@ class VerifierAgent(BaseAgent):
                     message="Budget analysis not available",
                     suggestion="Calculate budget breakdown manually"
                 ))
-            elif budget_output.is_over_budget:
-                over_amount = (budget_output.breakdown.accommodation +
-                             budget_output.breakdown.dining +
-                             budget_output.breakdown.flights +
-                             budget_output.breakdown.attractions +
-                             budget_output.breakdown.transportation +
-                             budget_output.breakdown.miscellaneous) - request.budget
+            elif not budget_output.is_within_budget:
+                # Calculate over amount
+                over_amount = budget_output.breakdown.total - request.budget
                 issues.append(ValidationIssue(
                     severity="error",
                     component="budget",
@@ -179,14 +174,14 @@ class VerifierAgent(BaseAgent):
             critical_issues = [i for i in issues if i.severity == "error"]
             is_valid = len(critical_issues) == 0
             
-            # Calculate overall quality score
+            # Calculate overall quality score (0-100)
             quality_score = 100.0
             for issue in issues:
                 if issue.severity == "error":
                     quality_score -= 20.0
                 elif issue.severity == "warning":
                     quality_score -= 5.0
-            quality_score = max(0.0, quality_score)
+            quality_score = max(0.0, min(100.0, quality_score))
             
             # Calculate confidence based on completeness
             components_present = sum([
@@ -198,10 +193,21 @@ class VerifierAgent(BaseAgent):
                 1 if itinerary_output and itinerary_output.days else 0
             ])
             
-            confidence = self._calculate_confidence(
-                source="seed",
-                data_quality_score=(components_present / 6.0) * 100
+            confidence_score = self._calculate_confidence(
+                data_source="seed",
+                data_quality_score=int((components_present / 6.0) * 100)
             )
+            # Convert from 0-100 to 0-1
+            confidence = confidence_score / 100.0
+            
+            # Generate summary
+            if is_valid:
+                if len(issues) == 0:
+                    summary = "Trip plan is complete and valid with no issues"
+                else:
+                    summary = f"Trip plan is valid with {len(issues)} minor warning(s)"
+            else:
+                summary = f"Found {len(critical_issues)} critical issue(s) that must be resolved"
             
             duration = (datetime.now() - start_time).total_seconds() * 1000
             self.logger.info(
@@ -209,13 +215,8 @@ class VerifierAgent(BaseAgent):
                 f"(valid: {is_valid}, issues: {len(issues)}, confidence: {confidence*100:.0f}%)"
             )
             
-            # FIX: Add summary field
-            if is_valid:
-                summary = f"Trip plan is valid with {len(issues)} minor warnings"
-            else:
-                summary = f"Found {len(critical_issues)} critical issues that must be resolved"
-            
-            return VerificationOutput(
+            # Create output
+            output = VerificationOutput(
                 is_valid=is_valid,
                 issues=issues,
                 quality_score=quality_score,
@@ -225,7 +226,27 @@ class VerifierAgent(BaseAgent):
                 confidence=confidence
             )
             
+            # Metadata
+            metadata = {
+                "data_source": "seed",
+                "confidence": confidence,
+                "warnings": [issue.message for issue in issues if issue.severity == "warning"],
+                "errors": [issue.message for issue in issues if issue.severity == "error"],
+                "execution_time_ms": int(duration)
+            }
+            
+            return output, metadata
+            
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             self.logger.error(f"✗ Verifier failed after {duration:.0f}ms: {e}")
             raise
+    
+    def _create_metadata(self, data_source: str, duration: float) -> dict:
+        """Create metadata dictionary"""
+        return {
+            "agent": self.name,
+            "data_source": data_source,
+            "execution_time_ms": int(duration),
+            "timestamp": datetime.now().isoformat()
+        }

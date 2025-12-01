@@ -89,7 +89,8 @@ Provide realistic prices in IDR. Rating 0.0-5.0. Return ONLY the JSON array."""
     async def execute(
         self, 
         request: TripRequest,
-        max_budget: Optional[float] = None  # NEW: Budget allocation parameter
+        max_budget: Optional[float] = None,  # NEW: Budget allocation parameter
+        context: Optional[Dict] = None
     ) -> tuple[HotelOutput, Dict]:
         """
         Find suitable hotels with budget awareness

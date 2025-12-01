@@ -38,34 +38,34 @@ def print_trip_summary(trip_plan, metadata):
     print("\n📋 TRIP PLAN SUMMARY")
     print("-" * 60)
     print(f"Destination: {trip_plan.destination.destination}")
-    print(f"Duration: {len(trip_plan.itinerary.daily_itineraries)} days")
+    print(f"Duration: {len(trip_plan.itinerary.days)} days")
     print(f"\n💰 BUDGET:")
-    print(f"  Total Cost: Rp {trip_plan.budget.total_cost:,.0f}")
-    print(f"  Allocated: Rp {trip_plan.budget.budget_allocated:,.0f}")
-    print(f"  Remaining: Rp {trip_plan.budget.remaining_budget:,.0f}")
-    print(f"  Within Budget: {'✅ YES' if trip_plan.budget.within_budget else '⚠️  NO'}")
+    print(f"  Total Cost: Rp {trip_plan.budget.breakdown.total:,.0f}")
+    print(f"  Allocated: Rp {trip_plan.budget.breakdown.total:,.0f}")
+    print(f"  Remaining: Rp {trip_plan.budget.breakdown.remaining:,.0f}")
+    print(f"  Within Budget: {'✅ YES' if trip_plan.budget.is_within_budget else '⚠️  NO'}")
     
     print(f"\n✈️  FLIGHTS:")
     print(f"  Outbound: {len(trip_plan.flights.outbound_flights)} options")
     print(f"  Return: {len(trip_plan.flights.return_flights)} options")
-    print(f"  Cost: Rp {trip_plan.flights.total_cost:,.0f}")
+    print(f"  Cost: Rp {trip_plan.flights.total_flight_cost:,.0f}")
     
     print(f"\n🏨 HOTEL:")
     print(f"  Name: {trip_plan.hotels.recommended_hotel.name}")
     print(f"  Rating: {trip_plan.hotels.recommended_hotel.rating}⭐")
-    print(f"  Cost: Rp {trip_plan.hotels.total_cost:,.0f}")
+    print(f"  Cost: Rp {trip_plan.hotels.total_accommodation_cost:,.0f}")
     
     print(f"\n🍽️  DINING:")
     print(f"  Meal Plans: {len(trip_plan.dining.meal_plan)} days")
     print(f"  Cost: Rp {trip_plan.dining.estimated_total_cost:,.0f}")
     
     print(f"\n📅 ITINERARY:")
-    total_activities = sum(len(day.activities) for day in trip_plan.itinerary.daily_itineraries)
-    print(f"  Days: {len(trip_plan.itinerary.daily_itineraries)}")
+    total_activities = sum(len(day.activities) for day in trip_plan.itinerary.days)
+    print(f"  Days: {len(trip_plan.itinerary.days)}")
     print(f"  Activities: {total_activities}")
     
     print(f"\n✅ VERIFICATION:")
-    print(f"  Overall Score: {trip_plan.verification.overall_score:.1f}/10")
+    print(f"  Quality Score: {trip_plan.verification.quality_score:.1f}/100")
     print(f"  Valid: {'✅ YES' if trip_plan.verification.is_valid else '❌ NO'}")
     
     print(f"\n🎯 CONFIDENCE:")
@@ -94,8 +94,8 @@ async def test_basic_trip():
         destination="Bali",
         origin="Jakarta",
         duration_days=4,
-        start_date="2024-07-15",
-        end_date="2024-07-18",
+        start_date="2026-07-15",
+        end_date="2026-07-18",
         budget=15000000.0,
         num_travelers=2,
         preferences={
@@ -166,8 +166,8 @@ async def test_tight_budget():
         destination="Bali",
         origin="Jakarta",
         duration_days=4,
-        start_date="2024-07-15",
-        end_date="2024-07-18",
+        start_date="2026-07-15",
+        end_date="2026-07-18",
         budget=5000000.0,  # Tight budget
         num_travelers=2,
         preferences={
@@ -217,8 +217,8 @@ async def test_progress_tracking():
         destination="Yogyakarta",
         origin="Jakarta",
         duration_days=3,
-        start_date="2024-08-01",
-        end_date="2024-08-03",
+        start_date="2026-08-01",
+        end_date="2026-08-03",
         budget=8000000.0,
         num_travelers=2
     )
@@ -279,8 +279,8 @@ async def test_multiple_destinations():
             destination=dest,
             origin=origin,
             duration_days=3,
-            start_date="2024-07-15",
-            end_date="2024-07-17",
+            start_date="2026-07-15",
+            end_date="2026-07-17",
             budget=10000000.0,
             num_travelers=2
         )
@@ -290,13 +290,13 @@ async def test_multiple_destinations():
         try:
             trip_plan, metadata = await orchestrator.plan_trip(request)
             
-            print(f"   ✅ Success: Rp {trip_plan.budget.total_cost:,.0f}, "
+            print(f"   ✅ Success: Rp {trip_plan.budget.breakdown.total:,.0f}, "
                   f"Confidence: {trip_plan.overall_confidence:.2%}")
             
             results.append({
                 'destination': dest,
                 'success': True,
-                'cost': trip_plan.budget.total_cost,
+                'cost': trip_plan.budget.breakdown.total,
                 'confidence': trip_plan.overall_confidence
             })
             

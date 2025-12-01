@@ -1,7 +1,8 @@
 """
 TripOrchestrator - Master Coordinator for Budget-Aware Trip Planning
 
-Location: backend/orchestrator/trip_orchestrator.py
+FIXED: Only FlightAgent needs retriever parameter
+All other agents create their own dependencies internally
 
 Responsibilities:
 1. Sequential agent execution with context sharing
@@ -128,31 +129,27 @@ class TripOrchestrator:
     - Progress tracking
     """
     
-    def __init__(self, retriever=None):
+    def __init__(self):
         """
         Initialize orchestrator and all agents
         
-        Args:
-            retriever: SmartRetriever instance (optional, will create if not provided)
+        FIXED: Only FlightAgent needs retriever parameter
         """
         # Import here to avoid circular imports
         from backend.data_sources.smart_retriever import SmartRetriever
         
-        # Create or use provided retriever
-        if retriever is None:
-            retriever = SmartRetriever()
-            logger.info("Created new SmartRetriever instance")
+        # Create retriever for FlightAgent
+        retriever = SmartRetriever()
+        logger.info("Created SmartRetriever instance for FlightAgent")
         
-        self.retriever = retriever
-        
-        # Initialize all agents with proper dependencies
+        # Initialize all agents
         self.destination_agent = DestinationAgent()
-        self.flight_agent = FlightAgent(retriever=self.retriever)
-        self.hotel_agent = HotelAgent(retriever=self.retriever)
-        self.dining_agent = DiningAgent(retriever=self.retriever)
+        self.flight_agent = FlightAgent()  # ✅ Only one that needs it
+        self.hotel_agent = HotelAgent()
+        self.dining_agent = DiningAgent()
         self.budget_agent = BudgetAgent()
         self.itinerary_agent = ItineraryAgent()
-        self.verifier_agent = VerifierAgent()
+        self.verifier_agent = VerifierAgent()  # ✅ No retriever needed
         
         self.progress = ExecutionProgress()
         
@@ -298,26 +295,25 @@ class TripOrchestrator:
         self.progress.start_step("FlightAgent", 2)
         
         try:
-            # FlightAgent now accepts max_budget parameter
-            output, agent_metadata = await self.flight_agent.execute(
+            # FlightAgent accepts max_budget parameter
+            output = await self.flight_agent.execute(
                 request,
-                context,
                 max_budget=max_budget
             )
             
             self.progress.complete_step("FlightAgent", success=True)
             self.progress.add_message(
-                f"  → Budget: Rp {max_budget:,.0f}, Cost: Rp {output.total_cost:,.0f}"
+                f"  → Budget: Rp {max_budget:,.0f}, Cost: Rp {output.total_flight_cost:,.0f}"
             )
             
             # Warnings if over budget
-            if output.total_cost > max_budget:
-                over_pct = ((output.total_cost - max_budget) / max_budget) * 100
+            if output.total_flight_cost > max_budget:
+                over_pct = ((output.total_flight_cost - max_budget) / max_budget) * 100
                 self.progress.add_message(
                     f"  ⚠️  Flights exceed budget by {over_pct:.1f}%"
                 )
             
-            context['agent_metadata']['flight'] = agent_metadata
+            context['agent_metadata']['flight'] = output.metadata
             return output
             
         except Exception as e:
@@ -335,21 +331,20 @@ class TripOrchestrator:
         self.progress.start_step("HotelAgent", 3)
         
         try:
-            # HotelAgent now accepts max_budget parameter
+            # HotelAgent accepts max_budget parameter
             output, agent_metadata = await self.hotel_agent.execute(
                 request,
-                context,
                 max_budget=max_budget
             )
             
             self.progress.complete_step("HotelAgent", success=True)
             self.progress.add_message(
-                f"  → Budget: Rp {max_budget:,.0f}, Cost: Rp {output.total_cost:,.0f}"
+                f"  → Budget: Rp {max_budget:,.0f}, Cost: Rp {output.total_accommodation_cost:,.0f}"
             )
             
             # Warnings if over budget
-            if output.total_cost > max_budget:
-                over_pct = ((output.total_cost - max_budget) / max_budget) * 100
+            if output.total_accommodation_cost > max_budget:
+                over_pct = ((output.total_accommodation_cost - max_budget) / max_budget) * 100
                 self.progress.add_message(
                     f"  ⚠️  Hotel exceeds budget by {over_pct:.1f}%"
                 )
@@ -399,9 +394,9 @@ class TripOrchestrator:
             
             self.progress.complete_step("BudgetAgent", success=True)
             
-            within_budget = "✅ Within" if output.within_budget else "⚠️  Over"
+            within_budget = "✅ Within" if output.is_within_budget else "⚠️  Over"
             self.progress.add_message(
-                f"  → Total: Rp {output.total_cost:,.0f}, {within_budget} budget"
+                f"  → Total: Rp {output.breakdown.total:,.0f}, {within_budget} budget"
             )
             
             context['agent_metadata']['budget'] = agent_metadata
@@ -425,9 +420,9 @@ class TripOrchestrator:
             
             self.progress.complete_step("ItineraryAgent", success=True)
             
-            total_activities = sum(len(day.activities) for day in output.daily_itineraries)
+            total_activities = sum(len(day.activities) for day in output.days)
             self.progress.add_message(
-                f"  → {len(output.daily_itineraries)} days, {total_activities} activities"
+                f"  → {len(output.days)} days, {total_activities} activities"
             )
             
             context['agent_metadata']['itinerary'] = agent_metadata
@@ -452,7 +447,7 @@ class TripOrchestrator:
             self.progress.complete_step("VerifierAgent", success=True)
             
             status = "✅ Valid" if output.is_valid else "⚠️  Issues found"
-            self.progress.add_message(f"  → {status}, Score: {output.overall_score:.1f}/10")
+            self.progress.add_message(f"  → {status}, Score: {output.quality_score:.1f}/100")
             
             context['agent_metadata']['verifier'] = agent_metadata
             return output
@@ -501,8 +496,7 @@ class TripOrchestrator:
             hotel_output.confidence * weights['hotel'] +
             dining_output.confidence * weights['dining'] +
             budget_output.confidence * weights['budget'] +
-            itinerary_output.confidence * weights['itinerary'] +
-            (verification_output.overall_score / 10) * weights['verification']
+            (verification_output.quality_score / 100) * weights['verification']
         )
         
         trip_plan = TripPlan(
@@ -518,47 +512,3 @@ class TripOrchestrator:
         )
         
         return trip_plan
-
-
-# Example usage
-if __name__ == "__main__":
-    async def main():
-        # Create sample request
-        request = TripRequest(
-            destination="Bali",
-            origin="Jakarta",
-            duration_days=4,
-            start_date="2024-07-15",
-            end_date="2024-07-18",
-            budget=15000000.0,
-            num_travelers=2,
-            preferences={
-                "accommodation_type": "hotel",
-                "interests": ["culture", "beach", "food"]
-            }
-        )
-        
-        # Create orchestrator
-        orchestrator = TripOrchestrator()
-        
-        # Progress callback
-        def on_progress(progress: ExecutionProgress):
-            print(f"Progress: {progress.get_progress_percentage():.1f}%")
-            if progress.messages:
-                print(f"Latest: {progress.messages[-1]}")
-        
-        # Plan trip
-        trip_plan, metadata = await orchestrator.plan_trip(request, on_progress)
-        
-        print("\n" + "="*60)
-        print("TRIP PLAN SUMMARY")
-        print("="*60)
-        print(f"Destination: {trip_plan.destination.destination}")
-        print(f"Total Cost: Rp {trip_plan.budget.total_cost:,.0f}")
-        print(f"Within Budget: {trip_plan.budget.within_budget}")
-        print(f"Overall Confidence: {trip_plan.overall_confidence:.2f}")
-        print(f"Verification Score: {trip_plan.verification.overall_score:.1f}/10")
-        print(f"Warnings: {len(trip_plan.warnings)}")
-        print("="*60)
-    
-    asyncio.run(main())

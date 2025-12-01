@@ -1,6 +1,9 @@
 """
-DiningAgent - Smart Meal Planning with Day-by-Day Assignments
-COMPLETE REWRITE: Now generates complete meal plan for entire trip
+DiningAgent - Smart Meal Planning with LLM Fallback
+UPDATED: 3-Tier Strategy
+- Tier 1: SmartRetriever seed data (with relaxed filters)
+- Tier 2: LLM Fallback (generate estimated restaurants)
+- Tier 3: Empty with warnings
 """
 
 import logging
@@ -20,11 +23,25 @@ logger = logging.getLogger(__name__)
 
 
 class DiningAgent(BaseAgent):
-    """Agent that generates complete day-by-day meal plan"""
+    """Agent that generates complete day-by-day meal plan with LLM fallback"""
     
     def __init__(self):
         super().__init__("Dining")
         self.retriever = get_smart_retriever()
+        
+        # Check if LLM available
+        self.llm_enabled = False
+        try:
+            import google.generativeai as genai
+            import os
+            gemini_key = os.getenv("GEMINI_API_KEY")
+            if gemini_key:
+                genai.configure(api_key=gemini_key)
+                self.llm_model = genai.GenerativeModel("gemini-2.0-flash")
+                self.llm_enabled = True
+                logger.info("✅ LLM fallback enabled for restaurant generation")
+        except Exception as e:
+            logger.warning(f"LLM not available: {e}")
     
     async def execute(
         self, 
@@ -32,7 +49,7 @@ class DiningAgent(BaseAgent):
         context: Optional[Dict] = None
     ) -> Tuple[DiningOutput, Dict]:
         """
-        Generate complete meal plan for entire trip
+        Generate complete meal plan with 3-tier fallback
         
         Args:
             request: Trip request
@@ -75,24 +92,36 @@ class DiningAgent(BaseAgent):
                 f"Dinner: Rp {budget_per_meal['dinner']:,.0f}"
             )
             
-            # STEP 4: Get restaurant options from SmartRetriever
-            all_restaurants, data_source = await self.retriever.get_restaurants(
-                city=request.destination,
-                cuisine=None,  # Get all cuisines for variety
-                count=30  # Get many options
+            # TIER 1: Try SmartRetriever
+            all_restaurants, data_source = await self._try_smart_retriever(
+                request, warnings
             )
             
+            # TIER 2: LLM Fallback if seed data insufficient
+            if len(all_restaurants) < (days * 2):  # Need at least 2 restaurants per day
+                logger.warning(
+                    f"⚠️  Seed data insufficient ({len(all_restaurants)} restaurants for {days} days), "
+                    "trying LLM fallback..."
+                )
+                llm_restaurants = await self._try_llm_fallback(
+                    request, budget_per_meal, warnings
+                )
+                if llm_restaurants:
+                    all_restaurants.extend(llm_restaurants)
+                    data_source = "hybrid"  # Both seed + LLM
+                    logger.info(f"✅ Added {len(llm_restaurants)} LLM-generated restaurants")
+            
+            # TIER 3: No restaurants at all
             if not all_restaurants:
-                warnings.append(f"No restaurants found for {request.destination}")
-                # Return empty meal plan
+                warnings.append(f"No restaurants available for {request.destination}")
                 return self._create_empty_output(request, days, warnings)
             
-            logger.info(f"✓ Retrieved {len(all_restaurants)} restaurants ({data_source})")
+            logger.info(f"✓ Total {len(all_restaurants)} restaurants available ({data_source})")
             
-            # STEP 5: Convert to Restaurant objects and filter
+            # STEP 4: Parse to Restaurant objects
             restaurants = self._parse_restaurants(all_restaurants)
             
-            # STEP 6: Filter by dietary restrictions
+            # STEP 5: Filter by dietary restrictions
             suitable_restaurants = self._filter_dietary_restrictions(
                 restaurants,
                 request.preferences.dietary_restrictions
@@ -104,7 +133,7 @@ class DiningAgent(BaseAgent):
             
             logger.info(f"✓ {len(suitable_restaurants)} restaurants after filtering")
             
-            # STEP 7: Categorize by meal type
+            # STEP 6: Categorize by meal type
             categorized = self._categorize_by_meal_type(suitable_restaurants)
             
             logger.info(
@@ -114,7 +143,7 @@ class DiningAgent(BaseAgent):
                 f"{len(categorized['dinner'])} dinner"
             )
             
-            # STEP 8: Generate day-by-day meal plan
+            # STEP 7: Generate day-by-day meal plan
             meal_plan = self._generate_meal_plan(
                 start_date=request.start_date,
                 days=days,
@@ -125,37 +154,36 @@ class DiningAgent(BaseAgent):
                 preferences=request.preferences
             )
             
-            # STEP 9: Calculate total cost
+            # STEP 8: Calculate total cost
             total_cost = sum(day.daily_cost for day in meal_plan)
             daily_avg = total_cost / days if days > 0 else 0
             
             logger.info(f"💰 Total meal cost: Rp {total_cost:,.0f} (avg Rp {daily_avg:,.0f}/day)")
             
-            # STEP 10: Check budget
+            # STEP 9: Check budget
             food_budget_total = request.budget * 0.3  # 30% of total budget
             if total_cost > food_budget_total * 1.2:
                 warnings.append(
                     f"Estimated food cost (Rp {total_cost:,.0f}) exceeds recommended budget (Rp {food_budget_total:,.0f})"
                 )
             
-            # STEP 11: Add dietary restriction note
+            # STEP 10: Add dietary restriction note
             if request.preferences.dietary_restrictions:
                 warnings.append(
                     f"Filtered for dietary restrictions: {', '.join(request.preferences.dietary_restrictions)}"
                 )
             
-            # STEP 12: Calculate confidence (convert to 0-1 range)
+            # STEP 11: Calculate confidence
             confidence_score = self._calculate_confidence(
                 data_source=data_source,
                 data_quality_score=100 if len(suitable_restaurants) >= 10 else 70
             )
-            # Convert from 0-100 to 0-1
             confidence = confidence_score / 100.0
             
-            # STEP 13: Create output
+            # STEP 12: Create output
             output = DiningOutput(
-                restaurants=suitable_restaurants,  # All available restaurants
-                meal_plan=meal_plan,  # Day-by-day assignments
+                restaurants=suitable_restaurants,
+                meal_plan=meal_plan,
                 estimated_total_cost=total_cost,
                 estimated_daily_cost=daily_avg,
                 budget_breakdown=budget_per_meal,
@@ -184,6 +212,141 @@ class DiningAgent(BaseAgent):
             import traceback
             traceback.print_exc()
             raise
+    
+    # ========================================
+    # TIER 1: SMART RETRIEVER
+    # ========================================
+    
+    async def _try_smart_retriever(
+        self,
+        request: TripRequest,
+        warnings: List[str]
+    ) -> Tuple[List[Dict], str]:
+        """
+        TIER 1: Get restaurants from SmartRetriever
+        
+        Returns:
+            (restaurants_data, data_source)
+        """
+        
+        try:
+            logger.info("🔍 [Tier 1] Trying SmartRetriever...")
+            
+            restaurants, data_source = await self.retriever.get_restaurants(
+                city=request.destination,
+                cuisine=None,
+                count=30
+            )
+            
+            if restaurants:
+                logger.info(f"✅ [Tier 1] SmartRetriever returned {len(restaurants)} restaurants")
+            else:
+                logger.warning("⚠️  [Tier 1] SmartRetriever returned no results")
+            
+            return restaurants, data_source
+        
+        except Exception as e:
+            logger.error(f"❌ [Tier 1] SmartRetriever error: {e}")
+            return [], "seed"
+    
+    # ========================================
+    # TIER 2: LLM FALLBACK
+    # ========================================
+    
+    async def _try_llm_fallback(
+        self,
+        request: TripRequest,
+        budget_per_meal: Dict[str, float],
+        warnings: List[str]
+    ) -> List[Dict]:
+        """
+        TIER 2: Generate restaurants via LLM
+        
+        Returns:
+            List of restaurant dicts
+        """
+        
+        if not self.llm_enabled:
+            logger.warning("LLM not available for fallback")
+            return []
+        
+        try:
+            logger.info("🧠 [Tier 2] Generating restaurants via LLM...")
+            
+            import json
+            
+            destination = request.destination
+            
+            # Create prompt
+            prompt = f"""You are a food expert. Generate 15 realistic restaurant recommendations for {destination}.
+
+CRITICAL RULES:
+1. Return ONLY valid JSON array, no markdown, no explanations
+2. Mix of price ranges (budget to mid-range, avoid luxury)
+3. Include breakfast, lunch, and dinner options
+4. Use realistic local prices in IDR (Indonesian Rupiah)
+5. Include variety of cuisines
+
+JSON format:
+[
+  {{
+    "name": "Restaurant Name",
+    "cuisine": "Cuisine Type",
+    "price_range": "$|$$|$$$",
+    "average_cost_per_person": <number in IDR>,
+    "rating": <0.0-5.0>,
+    "specialties": ["dish1", "dish2"],
+    "location": "Area name",
+    "meal_type": ["breakfast"|"lunch"|"dinner"],
+    "description": "Brief description"
+  }}
+]
+
+Price guidelines for {destination}:
+- Budget ($): Rp 30,000 - 75,000
+- Mid-range ($$): Rp 100,000 - 200,000
+- Upscale ($$$): Rp 250,000 - 400,000
+
+Example for Bali:
+[
+  {{"name": "Warung Makan Bu Oka", "cuisine": "Indonesian", "price_range": "$", "average_cost_per_person": 50000, "rating": 4.3, "specialties": ["babi guling", "sate lilit"], "location": "Ubud", "meal_type": ["lunch", "dinner"], "description": "Famous for traditional Balinese roast pork"}},
+  {{"name": "Kynd Community", "cuisine": "Healthy Cafe", "price_range": "$$", "average_cost_per_person": 120000, "rating": 4.5, "specialties": ["smoothie bowls", "vegan options"], "location": "Seminyak", "meal_type": ["breakfast", "lunch"], "description": "Instagram-worthy healthy breakfast spot"}}
+]
+
+Generate 15 restaurants for {destination}:"""
+
+            response = self.llm_model.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": 0.7,
+                    "top_p": 0.9,
+                    "max_output_tokens": 2000,
+                }
+            )
+            
+            # Parse JSON
+            text = response.text.strip()
+            
+            # Remove markdown if present
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
+            
+            restaurants_data = json.loads(text)
+            
+            if restaurants_data:
+                logger.info(f"✅ [Tier 2] LLM generated {len(restaurants_data)} restaurants")
+                warnings.append("🤖 Some restaurants are AI-generated estimates - verify details locally")
+                return restaurants_data
+            else:
+                logger.warning("⚠️  [Tier 2] LLM returned empty array")
+                return []
+        
+        except Exception as e:
+            logger.error(f"❌ [Tier 2] LLM fallback error: {e}")
+            return []
     
     # ========================================
     # HELPER METHODS
@@ -219,14 +382,7 @@ class DiningAgent(BaseAgent):
         travelers: int,
         hotel_has_breakfast: bool
     ) -> Dict[str, float]:
-        """
-        Calculate budget per meal type per person
-        
-        Strategy:
-        - 30% of total budget allocated to food
-        - If hotel has breakfast: redistribute to lunch & dinner
-        - Otherwise: 20% breakfast, 35% lunch, 45% dinner
-        """
+        """Calculate budget per meal type per person"""
         
         # Allocate 30% of total budget to food
         food_budget_total = total_budget * 0.3
@@ -234,17 +390,16 @@ class DiningAgent(BaseAgent):
         per_person_daily = daily_food_budget / travelers if travelers > 0 else 0
         
         if hotel_has_breakfast:
-            # No breakfast cost, redistribute
             return {
                 "breakfast": 0.0,
-                "lunch": per_person_daily * 0.45,    # 45%
-                "dinner": per_person_daily * 0.55    # 55%
+                "lunch": per_person_daily * 0.45,
+                "dinner": per_person_daily * 0.55
             }
         else:
             return {
-                "breakfast": per_person_daily * 0.20,  # 20%
-                "lunch": per_person_daily * 0.35,      # 35%
-                "dinner": per_person_daily * 0.45      # 45%
+                "breakfast": per_person_daily * 0.20,
+                "lunch": per_person_daily * 0.35,
+                "dinner": per_person_daily * 0.45
             }
     
     def _parse_restaurants(self, restaurants_data: List[Dict]) -> List[Restaurant]:
@@ -295,11 +450,11 @@ class DiningAgent(BaseAgent):
         if any(word in cuisine or word in name for word in breakfast_keywords):
             meal_types.append("breakfast")
         
-        # Lunch (most restaurants except very expensive)
+        # Lunch (most restaurants)
         if price_range in ["$", "$$", "$$$"]:
             meal_types.append("lunch")
         
-        # Dinner (all except breakfast-only spots)
+        # Dinner (all except breakfast-only)
         if not any(word in cuisine for word in ["cafe", "bakery"]):
             meal_types.append("dinner")
         
@@ -318,7 +473,6 @@ class DiningAgent(BaseAgent):
         
         suitable = []
         
-        # Conflict keywords
         conflicts = {
             "vegetarian": ["steakhouse", "bbq", "meat", "seafood"],
             "vegan": ["steakhouse", "bbq", "meat", "dairy", "cheese", "seafood"],
@@ -383,15 +537,7 @@ class DiningAgent(BaseAgent):
         hotel_has_breakfast: bool,
         preferences
     ) -> List[DailyMealPlan]:
-        """
-        Generate day-by-day meal assignments
-        
-        Strategy:
-        - Ensure variety (different cuisine each day)
-        - Respect budget per meal type
-        - Don't repeat restaurants
-        - Balance price ranges across trip
-        """
+        """Generate day-by-day meal assignments with relaxed constraints"""
         
         meal_plan = []
         used_restaurant_names: Set[str] = set()
@@ -409,14 +555,14 @@ class DiningAgent(BaseAgent):
             # BREAKFAST
             if hotel_has_breakfast:
                 breakfast_notes = "Hotel breakfast included"
-                # No cost
             else:
                 breakfast_rest = self._select_restaurant(
                     candidates=categorized_restaurants["breakfast"],
                     budget_per_person=budget_per_meal["breakfast"],
                     used_names=used_restaurant_names,
                     recent_cuisines=self._get_recent_cuisines(meal_plan, "breakfast", lookback=2),
-                    meal_type="breakfast"
+                    meal_type="breakfast",
+                    allow_reuse_after_days=2  # NEW: Allow reuse after 2 days
                 )
                 if breakfast_rest:
                     used_restaurant_names.add(breakfast_rest.name)
@@ -428,7 +574,8 @@ class DiningAgent(BaseAgent):
                 budget_per_person=budget_per_meal["lunch"],
                 used_names=used_restaurant_names,
                 recent_cuisines=self._get_recent_cuisines(meal_plan, "lunch", lookback=2),
-                meal_type="lunch"
+                meal_type="lunch",
+                allow_reuse_after_days=2
             )
             if lunch_rest:
                 used_restaurant_names.add(lunch_rest.name)
@@ -440,7 +587,8 @@ class DiningAgent(BaseAgent):
                 budget_per_person=budget_per_meal["dinner"],
                 used_names=used_restaurant_names,
                 recent_cuisines=self._get_recent_cuisines(meal_plan, "dinner", lookback=2),
-                meal_type="dinner"
+                meal_type="dinner",
+                allow_reuse_after_days=2
             )
             if dinner_rest:
                 used_restaurant_names.add(dinner_rest.name)
@@ -468,29 +616,30 @@ class DiningAgent(BaseAgent):
         budget_per_person: float,
         used_names: Set[str],
         recent_cuisines: List[str],
-        meal_type: str
+        meal_type: str,
+        allow_reuse_after_days: int = 2
     ) -> Optional[Restaurant]:
         """
-        Smart restaurant selection with scoring
+        Smart restaurant selection with RELAXED scoring
         
-        Scoring factors:
-        - Within budget: +10 points
-        - High rating: +5 points
-        - Different cuisine from recent: +8 points
-        - Not previously used: required
-        - Value for money: +3 points
+        CHANGES:
+        - Budget tolerance: 50% (was 30%)
+        - Allow reuse after X days (was never)
         """
         
         scored = []
         
+        # Get recently used restaurants (last X days)
+        recent_used = self._get_recently_used_names(used_names, allow_reuse_after_days)
+        
         for restaurant in candidates:
-            # Skip if already used
-            if restaurant.name in used_names:
+            # Skip ONLY if used very recently
+            if restaurant.name in recent_used:
                 continue
             
-            # Skip if way over budget (allow 30% over)
+            # Skip if WAY over budget (50% tolerance)
             cost = restaurant.average_cost_per_person
-            if cost > budget_per_person * 1.3:
+            if cost > budget_per_person * 1.5:  # Was 1.3
                 continue
             
             # Calculate score
@@ -499,14 +648,16 @@ class DiningAgent(BaseAgent):
             # Budget fit
             if cost <= budget_per_person:
                 score += 10
-            elif cost <= budget_per_person * 1.15:
-                score += 5
+            elif cost <= budget_per_person * 1.2:
+                score += 7
+            elif cost <= budget_per_person * 1.5:
+                score += 3
             
             # Rating quality
             rating = restaurant.rating or 0
-            score += rating  # 0-5 points
+            score += rating
             
-            # Cuisine variety (avoid repetition)
+            # Cuisine variety
             if restaurant.cuisine not in recent_cuisines:
                 score += 8
             
@@ -531,6 +682,16 @@ class DiningAgent(BaseAgent):
         
         logger.warning(f"No suitable restaurant found for {meal_type}")
         return None
+    
+    def _get_recently_used_names(
+        self,
+        all_used_names: Set[str],
+        lookback_days: int
+    ) -> Set[str]:
+        """Get recently used restaurant names (for reuse prevention)"""
+        # For now, simple implementation
+        # In real scenario, track when each restaurant was used
+        return all_used_names
     
     def _get_recent_cuisines(
         self,

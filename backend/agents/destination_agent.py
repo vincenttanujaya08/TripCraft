@@ -1,7 +1,7 @@
 """
 Destination Agent - Finds and validates destination information
 """
-from typing import Dict, List
+from typing import Dict, List, Optional
 import json
 import os
 from datetime import datetime
@@ -142,7 +142,7 @@ Return ONLY the JSON, nothing else."""
             print(f"❌ LLM fallback failed: {e}")
             raise ValueError(f"Destination '{destination}' not found and LLM fallback failed")
     
-    async def execute(self, request: TripRequest) -> tuple[DestinationOutput, Dict]:
+    async def execute(self, request: TripRequest, context: Optional[Dict] = None) -> tuple[DestinationOutput, Dict]:
         """
         Find destination information and attractions
         
