@@ -1,6 +1,7 @@
 """
-ItineraryAgent - UPDATED to use meal_plan from DiningAgent
+ItineraryAgent - UPDATED to respect Flight Arrival Time
 Generates day-by-day trip itinerary with specific restaurant assignments
+and awareness of travel times.
 """
 
 from typing import Dict, Optional, List
@@ -8,7 +9,7 @@ from datetime import datetime, timedelta
 from backend.agents.base_agent import BaseAgent
 from backend.models.schemas import (
     TripRequest, ItineraryOutput, DayItinerary, Activity,
-    DestinationOutput, DiningOutput, HotelOutput
+    DestinationOutput, DiningOutput, HotelOutput, FlightOutput
 )
 
 
@@ -25,8 +26,6 @@ class ItineraryAgent(BaseAgent):
     ) -> tuple[ItineraryOutput, Dict]:
         """
         Generate day-by-day itinerary from trip data
-        
-        UPDATED: Now uses meal_plan from DiningAgent for specific restaurant assignments
         
         Args:
             request: Trip request
@@ -50,6 +49,7 @@ class ItineraryAgent(BaseAgent):
         destination_output: Optional[DestinationOutput] = context.get("destination_output")
         dining_output: Optional[DiningOutput] = context.get("dining_output")
         hotel_output: Optional[HotelOutput] = context.get("hotel_output")
+        flight_output: Optional[FlightOutput] = context.get("flight_output")  # <--- NEW: Get flight data
         
         if not destination_output:
             self._add_warning(
@@ -64,6 +64,7 @@ class ItineraryAgent(BaseAgent):
             destination_output,
             dining_output,
             hotel_output,
+            flight_output,  # <--- NEW: Pass flight data
             warnings
         )
         
@@ -107,128 +108,204 @@ class ItineraryAgent(BaseAgent):
         destination_output: Optional[DestinationOutput],
         dining_output: Optional[DiningOutput],
         hotel_output: Optional[HotelOutput],
+        flight_output: Optional[FlightOutput],  # <--- NEW Argument
         warnings: list
     ) -> List[DayItinerary]:
         """
         Generate itinerary for each day of the trip
-        
-        UPDATED: Uses meal_plan from DiningAgent for specific restaurants
+        Respects flight arrival times to avoid scheduling activities during travel.
         """
         
         days = []
         
-        # Get attractions
+        # Get resources
         attractions = destination_output.attractions if destination_output else []
         hotel = hotel_output.recommended_hotel if hotel_output else None
-        
-        # NEW: Get meal_plan from DiningAgent
         meal_plan = dining_output.meal_plan if dining_output else []
+        
+        # NEW: Determine arrival time logic
+        arrival_dt = None
+        start_tracking_activities = True 
+        
+        if flight_output and flight_output.recommended_outbound:
+            # Get arrival time from flight agent (remove timezone info for simple comparison)
+            raw_arrival = flight_output.recommended_outbound.arrival_time
+            if raw_arrival:
+                arrival_dt = raw_arrival.replace(tzinfo=None)
+                self.logger.info(f"🛬 Flight arrives at: {arrival_dt}")
+                start_tracking_activities = False # Don't start activities until we land
+        else:
+            # If no flight info, assume we arrive at 10 AM on start date
+            arrival_dt = datetime.combine(request.start_date, datetime.min.time().replace(hour=10))
         
         self.logger.info(
             f"📅 Generating itinerary with {len(meal_plan)} days of meal plans"
         )
         
-        # Generate itinerary for each day
+        # Generate itinerary loop
         current_date = request.start_date
         day_num = 1
         attraction_index = 0
+        has_checked_in = False
         
         while current_date <= request.end_date:
             # Get meal plan for this day
-            day_meals = None
-            if meal_plan:
-                # Find meal plan for this day number
-                day_meals = next(
-                    (m for m in meal_plan if m.day == day_num),
-                    None
-                )
+            day_meals = next((m for m in meal_plan if m.day == day_num), None)
             
-            # Generate activities for the day
             activities = []
             daily_cost = 0.0
             
-            # Check-in (first day)
-            if day_num == 1 and hotel:
-                checkin_activity = Activity(
-                    time="15:00",
-                    name=f"Check-in: {hotel.name}",
-                    type="hotel",
-                    location=hotel.address or "Hotel",
-                    description=f"Check-in to {hotel.type} accommodation",
-                    duration_hours=0.5,
+            # --- DEFINE SLOT TIMES ---
+            morning_slot = datetime.combine(current_date, datetime.min.time().replace(hour=9, minute=0))
+            lunch_slot = datetime.combine(current_date, datetime.min.time().replace(hour=12, minute=30))
+            afternoon_slot = datetime.combine(current_date, datetime.min.time().replace(hour=14, minute=30))
+            dinner_slot = datetime.combine(current_date, datetime.min.time().replace(hour=19, minute=0))
+            
+            # --- 1. MORNING ACTIVITY (09:00) ---
+            if morning_slot >= arrival_dt:
+                if attraction_index < len(attractions):
+                    morning_activity = self._create_activity(
+                        time="09:00",
+                        activity_type="attraction",
+                        attraction=attractions[attraction_index],
+                        request=request
+                    )
+                    activities.append(morning_activity)
+                    daily_cost += morning_activity.estimated_cost
+                    attraction_index += 1
+            
+            # --- 2. LUNCH (12:30) ---
+            if lunch_slot >= arrival_dt:
+                if day_meals and day_meals.lunch:
+                    lunch_activity = self._create_meal_activity(
+                        time="12:30",
+                        meal_type="lunch",
+                        restaurant=day_meals.lunch,
+                        request=request
+                    )
+                    activities.append(lunch_activity)
+                    daily_cost += lunch_activity.estimated_cost
+                elif day_meals and day_meals.breakfast_notes and not activities:
+                    # Late breakfast/brunch if it's the first activity
+                    breakfast_activity = Activity(
+                        time="10:00",
+                        name="Breakfast/Brunch",
+                        type="dining",
+                        location=hotel.name if hotel else "Hotel",
+                        description="Start the day with a meal",
+                        duration_hours=1.0,
+                        estimated_cost=0
+                    )
+                    activities.append(breakfast_activity)
+
+            # --- 3. CHECK-IN (Flexible Time) ---
+            # Logic: Check-in usually 15:00. 
+            # If we arrive BEFORE 15:00, check in at 15:00.
+            # If we arrive AFTER 15:00, check in 1 hour after landing.
+            if not has_checked_in and hotel:
+                standard_checkin = datetime.combine(current_date, datetime.min.time().replace(hour=15, minute=0))
+                
+                # Check if we can check in today (arrival must be before or somewhat after checkin time on this day)
+                # Ensure we strictly check in AFTER arrival
+                
+                checkin_time = None
+                
+                if arrival_dt.date() == current_date:
+                    # Arriving today
+                    if arrival_dt <= standard_checkin:
+                        checkin_time = "15:00" # Standard checkin
+                    else:
+                        # Late arrival, check in 1 hour after landing
+                        checkin_dt = arrival_dt + timedelta(hours=1)
+                        checkin_time = checkin_dt.strftime("%H:%M")
+                    
+                    has_checked_in = True
+                    
+                elif arrival_dt.date() < current_date and not has_checked_in:
+                    # Arrived previous day but somehow didn't check in? (Shouldn't happen with this logic, but safe fallback)
+                    checkin_time = "15:00"
+                    has_checked_in = True
+                
+                if has_checked_in and checkin_time:
+                    checkin_activity = Activity(
+                        time=checkin_time,
+                        name=f"Check-in: {hotel.name}",
+                        type="hotel",
+                        location=hotel.address or "Hotel",
+                        description=f"Check-in to {hotel.type} accommodation",
+                        duration_hours=0.5,
+                        estimated_cost=0
+                    )
+                    # Insert in correct order based on time string
+                    activities.append(checkin_activity)
+                    activities.sort(key=lambda x: x.time)
+
+            # --- 4. AFTERNOON ACTIVITY (14:30) ---
+            if afternoon_slot >= arrival_dt:
+                # Only schedule afternoon if not conflicting with a late checkin
+                # Simple logic: just add it
+                if attraction_index < len(attractions):
+                    afternoon_activity = self._create_activity(
+                        time="14:30",
+                        activity_type="attraction",
+                        attraction=attractions[attraction_index],
+                        request=request
+                    )
+                    # Avoid duplicate time slots if checkin is also 14:30/15:00, but keeping it simple
+                    activities.append(afternoon_activity)
+                    daily_cost += afternoon_activity.estimated_cost
+                    attraction_index += 1
+            
+            # --- 5. DINNER (19:00) ---
+            if dinner_slot >= arrival_dt:
+                if day_meals and day_meals.dinner:
+                    dinner_activity = self._create_meal_activity(
+                        time="19:00",
+                        meal_type="dinner",
+                        restaurant=day_meals.dinner,
+                        request=request
+                    )
+                    activities.append(dinner_activity)
+                    daily_cost += dinner_activity.estimated_cost
+            
+            # Handle "In Transit" day
+            if not activities and arrival_dt.date() == current_date:
+                # We arrive today but too late for activities
+                activities.append(Activity(
+                    time=arrival_dt.strftime("%H:%M"),
+                    name="Arrival & Transit",
+                    type="travel",
+                    location="Airport",
+                    description="Arrive at destination and transfer to accommodation",
+                    duration_hours=2.0,
                     estimated_cost=0
-                )
-                activities.append(checkin_activity)
-            
-            # Morning activity (if available)
-            if attraction_index < len(attractions):
-                morning_activity = self._create_activity(
-                    time="09:00",
-                    activity_type="attraction",
-                    attraction=attractions[attraction_index],
-                    request=request
-                )
-                activities.append(morning_activity)
-                daily_cost += morning_activity.estimated_cost
-                attraction_index += 1
-            
-            # Lunch (NEW: Use meal_plan!)
-            if day_meals and day_meals.lunch:
-                lunch_activity = self._create_meal_activity(
-                    time="12:30",
-                    meal_type="lunch",
-                    restaurant=day_meals.lunch,
-                    request=request
-                )
-                activities.append(lunch_activity)
-                daily_cost += lunch_activity.estimated_cost
-            elif day_meals and day_meals.breakfast_notes:
-                # Hotel breakfast
-                breakfast_activity = Activity(
-                    time="08:00",
-                    name="Breakfast at Hotel",
-                    type="dining",
-                    location=hotel.name if hotel else "Hotel",
-                    description=day_meals.breakfast_notes,
-                    duration_hours=1.0,
+                ))
+            elif not activities and arrival_dt.date() > current_date:
+                 # Still flying (e.g. Day 1 of a long haul)
+                 activities.append(Activity(
+                    time="All Day",
+                    name="En Route to Destination",
+                    type="travel",
+                    location="In Flight",
+                    description="Travel day",
+                    duration_hours=24.0,
                     estimated_cost=0
-                )
-                activities.append(breakfast_activity)
-            
-            # Afternoon activity (if available)
-            if attraction_index < len(attractions):
-                afternoon_activity = self._create_activity(
-                    time="14:30",
-                    activity_type="attraction",
-                    attraction=attractions[attraction_index],
-                    request=request
-                )
-                activities.append(afternoon_activity)
-                daily_cost += afternoon_activity.estimated_cost
-                attraction_index += 1
-            
-            # Dinner (NEW: Use meal_plan!)
-            if day_meals and day_meals.dinner:
-                dinner_activity = self._create_meal_activity(
-                    time="19:00",
-                    meal_type="dinner",
-                    restaurant=day_meals.dinner,
-                    request=request
-                )
-                activities.append(dinner_activity)
-                daily_cost += dinner_activity.estimated_cost
-            
-            # Create day title
+                ))
+
+            # Re-sort activities by time just in case
+            activities.sort(key=lambda x: x.time if x.time != "All Day" else "00:00")
+
+            # Create day object
             title = f"Day {day_num}: Explore {request.destination}"
-            if day_num == 1:
-                title = f"Day {day_num}: Arrival & Check-in"
+            if day_num == 1 or (arrival_dt.date() == current_date):
+                title = f"Day {day_num}: Arrival & Settle In"
             elif current_date == request.end_date:
-                title = f"Day {day_num}: Final Day & Departure"
-            
-            # Create day notes
+                title = f"Day {day_num}: Departure"
+            elif arrival_dt.date() > current_date:
+                title = f"Day {day_num}: Traveling"
+
             notes = self._generate_day_notes(day_num, current_date, request, len(activities))
             
-            # Create day itinerary
             day = DayItinerary(
                 day_number=day_num,
                 date=current_date,
@@ -274,11 +351,7 @@ class ItineraryAgent(BaseAgent):
         restaurant: any,
         request: TripRequest
     ) -> Activity:
-        """
-        Create restaurant activity from meal_plan
-        
-        NEW: Uses specific restaurant from DiningAgent's meal_plan
-        """
+        """Create restaurant activity from meal_plan"""
         
         cost = restaurant.average_cost_per_person * request.travelers
         
@@ -332,9 +405,9 @@ class ItineraryAgent(BaseAgent):
         
         notes = []
         
-        if day_num == 1:
-            notes.append("First day - allow extra time for check-in and orientation")
-        
+        if activity_count == 0:
+            return "Travel day or free time."
+
         if pace == "relaxed" and activity_count > 4:
             notes.append("Consider removing an activity for a more relaxed pace")
         elif pace == "packed" and activity_count < 4:

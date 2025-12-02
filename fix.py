@@ -1,58 +1,182 @@
 #!/usr/bin/env python3
 """
-Fix duration_hours None errors in smart_retriever.py
+Fix ALL Seed Data Prices: USD → IDR
+Converts hotels, activities, and flight prices to Indonesian Rupiah
+
+Usage:
+    python fix_all_seed_prices.py
 """
 
-from pathlib import Path
-import re
+import json
+import os
+import shutil
+from datetime import datetime
 
-def fix_smart_retriever():
-    """Fix all duration_hours issues"""
+USD_TO_IDR = 15000  # Conversion rate
+
+def backup_file(filepath):
+    """Create backup with timestamp"""
+    if os.path.exists(filepath):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = f"{filepath}.backup_{timestamp}"
+        shutil.copy2(filepath, backup_path)
+        print(f"✅ Backup created: {backup_path}")
+        return True
+    return False
+
+def fix_hotels(filepath="seed_data/hotels.json"):
+    """Fix hotel prices: USD → IDR"""
     
-    filepath = Path(__file__).parent / "backend" / "data_sources" / "smart_retriever.py"
-    
-    if not filepath.exists():
+    if not os.path.exists(filepath):
         print(f"❌ File not found: {filepath}")
         return False
     
-    print(f"📁 Fixing: {filepath}")
+    print(f"\n📍 Fixing {filepath}...")
+    backup_file(filepath)
     
     with open(filepath, 'r', encoding='utf-8') as f:
-        content = f.read()
+        data = json.load(f)
     
-    original = content
+    changed = 0
     
-    # Fix 1: Replace duration_hours = flight.get('duration_hours', 2)
-    # with safe version
-    pattern1 = r"duration_hours = flight\.get\('duration_hours', 2\)"
-    replacement1 = "duration_hours = float(flight.get('duration_hours') or 2)"
-    content = re.sub(pattern1, replacement1, content)
+    for destination in data:
+        hotels = destination.get('hotels', [])
+        
+        for hotel in hotels:
+            price = hotel.get('price_per_night', 0)
+            
+            # If price < 10,000 → assume USD
+            if 0 < price < 10000:
+                old_price = price
+                new_price = price * USD_TO_IDR
+                hotel['price_per_night'] = new_price
+                
+                print(f"   ✏️  {hotel['name']}: ${old_price} → Rp {new_price:,.0f}")
+                changed += 1
     
-    # Fix 2: Replace duration_hours = flight.get('duration_hours')
-    # (without default)
-    pattern2 = r"duration_hours = flight\.get\('duration_hours'\)(?!\s*or)"
-    replacement2 = "duration_hours = float(flight.get('duration_hours') or 2)"
-    content = re.sub(pattern2, replacement2, content)
-    
-    # Fix 3: Wrap all timedelta(hours=...) with float()
-    # Find: timedelta(hours=duration_hours)
-    # Replace: timedelta(hours=float(duration_hours))
-    pattern3 = r"timedelta\(hours=duration_hours\)"
-    replacement3 = "timedelta(hours=float(duration_hours or 2))"
-    content = re.sub(pattern3, replacement3, content)
-    
-    # Fix 4: Safe duration parsing with try-except
-    pattern4 = r"duration_minutes = self\._parse_duration\((.+?)\)"
-    
-    if content != original:
+    if changed > 0:
         with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(content)
-        print("✅ Fixed!")
-        return True
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"✅ Fixed {changed} hotel prices")
     else:
-        print("⏭️  No changes needed")
+        print(f"ℹ️  No changes needed (prices already in IDR)")
+    
+    return True
+
+def fix_activities(filepath="seed_data/activities.json"):
+    """Fix activity prices: USD → IDR"""
+    
+    if not os.path.exists(filepath):
+        print(f"❌ File not found: {filepath}")
         return False
+    
+    print(f"\n📍 Fixing {filepath}...")
+    backup_file(filepath)
+    
+    with open(filepath, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    changed = 0
+    
+    for destination in data:
+        activities = destination.get('activities', [])
+        
+        for activity in activities:
+            price = activity.get('price_per_person', 0)
+            
+            # If price < 10,000 → assume USD
+            if 0 < price < 10000:
+                old_price = price
+                new_price = price * USD_TO_IDR
+                activity['price_per_person'] = new_price
+                
+                print(f"   ✏️  {activity['name']}: ${old_price} → Rp {new_price:,.0f}")
+                changed += 1
+    
+    if changed > 0:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"✅ Fixed {changed} activity prices")
+    else:
+        print(f"ℹ️  No changes needed (prices already in IDR)")
+    
+    return True
+
+def fix_flights(filepath="seed_data/flights.json"):
+    """Fix flight prices: USD → IDR"""
+    
+    if not os.path.exists(filepath):
+        print(f"❌ File not found: {filepath}")
+        return False
+    
+    print(f"\n📍 Fixing {filepath}...")
+    backup_file(filepath)
+    
+    with open(filepath, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    changed = 0
+    
+    for flight in data:
+        # Check both min and max
+        for field in ['price_range_min', 'price_range_max']:
+            price = flight.get(field, 0)
+            
+            # If price < 10,000 → assume USD
+            if 0 < price < 10000:
+                old_price = price
+                new_price = price * USD_TO_IDR
+                flight[field] = new_price
+                
+                print(f"   ✏️  {flight['route']} ({field}): ${old_price} → Rp {new_price:,.0f}")
+                changed += 1
+    
+    if changed > 0:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"✅ Fixed {changed} flight price fields")
+    else:
+        print(f"ℹ️  No changes needed (prices already in IDR)")
+    
+    return True
+
+def main():
+    """Run all fixes"""
+    
+    print("="*60)
+    print("🔧 FIXING ALL SEED DATA PRICES (USD → IDR)")
+    print("="*60)
+    print(f"Conversion rate: 1 USD = Rp {USD_TO_IDR:,.0f}")
+    
+    # Change to project directory
+    if os.path.exists("seed_data"):
+        print("✅ Found seed_data directory")
+    else:
+        print("❌ seed_data directory not found!")
+        print("   Please run this script from project root: 'tripcraft-lite 2'")
+        return
+    
+    # Fix each file
+    success_count = 0
+    
+    if fix_hotels():
+        success_count += 1
+    
+    if fix_activities():
+        success_count += 1
+    
+    if fix_flights():
+        success_count += 1
+    
+    # Summary
+    print("\n" + "="*60)
+    print(f"✅ COMPLETE! Fixed {success_count}/3 files")
+    print("="*60)
+    print("\n📝 NEXT STEPS:")
+    print("1. Test the app: python generate.py")
+    print("2. Check PDF prices are now in millions (Rp 2,550,000 not Rp 2,550)")
+    print("3. If still wrong, check Agent code (HotelAgent, ActivityAgent)")
+    print("\n💾 Backups saved with timestamp in seed_data/")
 
 if __name__ == "__main__":
-    fix_smart_retriever()
-    print("\n🚀 Now run: python tes.py")
+    main()

@@ -123,7 +123,7 @@ Return ONLY a valid JSON object (no additional text) with this EXACT structure:
       "type": "<museum/landmark/park/etc>",
       "description": "<brief description>",
       "estimated_duration_hours": <number>,
-      "estimated_cost": "<approximate cost in local currency>"
+      "estimated_cost": "<approximate cost in Rupiah>"
     }}
   ],
   "local_tips": [
@@ -168,7 +168,7 @@ Return ONLY a valid JSON array (no additional text) with this structure:
   {{
     "name": "<hotel name>",
     "category": "{budget}",
-    "price_per_night": <number in local currency>,
+    "price_per_night": <number in Rupiah>,
     "rating": <float between 0-5>,
     "amenities": ["<amenity1>", "<amenity2>"],
     "location": "<neighborhood or area>",
@@ -176,7 +176,7 @@ Return ONLY a valid JSON array (no additional text) with this structure:
   }}
 ]
 
-Use realistic prices and actual hotel names when possible."""
+Use realistic prices in Rupiah and actual hotel names when possible."""
 
         response = await self._generate(prompt)
         
@@ -218,14 +218,14 @@ Return ONLY a valid JSON array (no additional text):
     "name": "<restaurant name>",
     "cuisine": "<cuisine type>",
     "price_range": "<$/$$/$$$/$$$$>",
-    "estimated_cost_per_person": <number in local currency>,
+    "estimated_cost_per_person": <number in Rupiah>,
     "rating": <float between 0-5>,
     "specialties": ["<dish1>", "<dish2>"],
     "description": "<1-2 sentences>"
   }}
 ]
 
-Use realistic restaurants and prices."""
+Use realistic restaurants and prices in Rupiah."""
 
         response = await self._generate(prompt)
         
@@ -262,8 +262,8 @@ Return ONLY a valid JSON object (no additional text):
   "route": "{origin}-{destination}",
   "airline": "<typical airline for this route>",
   "duration_hours": <flight duration>,
-  "price_range_min": <minimum price in USD>,
-  "price_range_max": <maximum price in USD>,
+  "price_range_min": <minimum price in Rp>,
+  "price_range_max": <maximum price in Rp>,
   "departure_airport": "<airport code>",
   "arrival_airport": "<airport code>"
 }}

@@ -177,7 +177,7 @@ class PDFItineraryGenerator:
         """Create trip overview section"""
         elements = []
         
-        header = Paragraph("📋 TRIP OVERVIEW", self.styles['SectionHeader'])
+        header = Paragraph(" TRIP OVERVIEW", self.styles['SectionHeader'])
         elements.append(header)
         elements.append(Spacer(1, 0.2*inch))
         
@@ -213,7 +213,7 @@ class PDFItineraryGenerator:
         """Create flight details section"""
         elements = []
         
-        header = Paragraph("✈️ FLIGHT DETAILS", self.styles['SectionHeader'])
+        header = Paragraph(" FLIGHT DETAILS", self.styles['SectionHeader'])
         elements.append(header)
         elements.append(Spacer(1, 0.2*inch))
         
@@ -221,14 +221,15 @@ class PDFItineraryGenerator:
         if trip_plan.flights.recommended_outbound:
             flight = trip_plan.flights.recommended_outbound
             
-            outbound = Paragraph("🛫 OUTBOUND FLIGHT", self.styles['SubsectionHeader'])
+            outbound = Paragraph(" OUTBOUND FLIGHT", self.styles['SubsectionHeader'])
             elements.append(outbound)
             
             flight_data = [
                 ["Airline", f"{flight.airline} ({flight.flight_number})"],
                 ["Route", f"{flight.departure_airport} → {flight.arrival_airport}"],
-                ["Departure", str(flight.departure_time)],
-                ["Arrival", str(flight.arrival_time)],
+
+                ["Departure", f"{flight.departure_time} (Origin Local Time)"],
+                ["Arrival", f"{flight.arrival_time} (Dest. Local Time)"],
                 ["Duration", f"{flight.duration_hours:.1f} hours"],
                 ["Price", f"Rp {flight.price:,.0f}/person"],
             ]
@@ -253,7 +254,7 @@ class PDFItineraryGenerator:
         if trip_plan.flights.recommended_return:
             flight = trip_plan.flights.recommended_return
             
-            return_header = Paragraph("🛬 RETURN FLIGHT", self.styles['SubsectionHeader'])
+            return_header = Paragraph(" RETURN FLIGHT", self.styles['SubsectionHeader'])
             elements.append(return_header)
             
             flight_data = [
@@ -295,7 +296,7 @@ class PDFItineraryGenerator:
         """Create hotel details section"""
         elements = []
         
-        header = Paragraph("🏨 ACCOMMODATION", self.styles['SectionHeader'])
+        header = Paragraph(" ACCOMMODATION", self.styles['SectionHeader'])
         elements.append(header)
         elements.append(Spacer(1, 0.2*inch))
         
@@ -305,7 +306,7 @@ class PDFItineraryGenerator:
         
         hotel = trip_plan.hotels.recommended_hotel
         
-        stars = "⭐" * int(hotel.rating) if hotel.rating else ""
+        stars = "*" * int(hotel.rating) if hotel.rating else ""
         hotel_data = [
             ["Hotel", f"{hotel.name} {stars}"],
             ["Rating", f"{hotel.rating}/5" if hotel.rating else "N/A"],
@@ -346,7 +347,7 @@ class PDFItineraryGenerator:
         """Create day-by-day itinerary"""
         elements = []
         
-        header = Paragraph("📅 DAY-BY-DAY ITINERARY", self.styles['SectionHeader'])
+        header = Paragraph(" DAY-BY-DAY ITINERARY", self.styles['SectionHeader'])
         elements.append(header)
         elements.append(Spacer(1, 0.2*inch))
         
@@ -363,28 +364,37 @@ class PDFItineraryGenerator:
                 day_meals = trip_plan.dining.meal_plan[day_num - 1]
                 
                 if day_meals.breakfast:
-                    # CORRECT: average_cost_per_person, not price
+                    # FIXED: Wrap HTML in Paragraph object
                     meal_items.append([
-                        "🍳 Breakfast",
-                        f"{day_meals.breakfast.name}<br/>"
-                        f"<font size=9 color='#{self.COLOR_GRAY.hexval()[2:]}'>"
-                        f"Rp {day_meals.breakfast.average_cost_per_person:,.0f}/person</font>"
+                        " Breakfast",
+                        Paragraph(
+                            f"<b>{day_meals.breakfast.name}</b><br/>"
+                            f"<font size=9 color='#6B7280'>"
+                            f"Rp {day_meals.breakfast.average_cost_per_person:,.0f}/person</font>",
+                            self.styles['CustomBody']
+                        )
                     ])
                 
                 if day_meals.lunch:
                     meal_items.append([
-                        "🍽️ Lunch",
-                        f"{day_meals.lunch.name}<br/>"
-                        f"<font size=9 color='#{self.COLOR_GRAY.hexval()[2:]}'>"
-                        f"{day_meals.lunch.cuisine} • Rp {day_meals.lunch.average_cost_per_person:,.0f}/person</font>"
+                        " Lunch",
+                        Paragraph(
+                            f"<b>{day_meals.lunch.name}</b><br/>"
+                            f"<font size=9 color='#6B7280'>"
+                            f"{day_meals.lunch.cuisine} • Rp {day_meals.lunch.average_cost_per_person:,.0f}/person</font>",
+                            self.styles['CustomBody']
+                        )
                     ])
                 
                 if day_meals.dinner:
                     meal_items.append([
-                        "🍷 Dinner",
-                        f"{day_meals.dinner.name}<br/>"
-                        f"<font size=9 color='#{self.COLOR_GRAY.hexval()[2:]}'>"
-                        f"{day_meals.dinner.cuisine} • Rp {day_meals.dinner.average_cost_per_person:,.0f}/person</font>"
+                        " Dinner",
+                        Paragraph(
+                            f"<b>{day_meals.dinner.name}</b><br/>"
+                            f"<font size=9 color='#6B7280'>"
+                            f"{day_meals.dinner.cuisine} • Rp {day_meals.dinner.average_cost_per_person:,.0f}/person</font>",
+                            self.styles['CustomBody']
+                        )
                     ])
             except:
                 pass
@@ -405,7 +415,7 @@ class PDFItineraryGenerator:
             
             # Activities
             if day_itinerary.activities:
-                activity_header = Paragraph("📍 ACTIVITIES", self.styles['CustomBody'])
+                activity_header = Paragraph("<b> ACTIVITIES</b>", self.styles['CustomBody'])
                 elements.append(activity_header)
                 
                 for i, activity in enumerate(day_itinerary.activities, 1):
@@ -440,7 +450,7 @@ class PDFItineraryGenerator:
         """Create restaurant guide"""
         elements = []
         
-        header = Paragraph("🍽️ RESTAURANT GUIDE", self.styles['SectionHeader'])
+        header = Paragraph(" RESTAURANT GUIDE", self.styles['SectionHeader'])
         elements.append(header)
         elements.append(Spacer(1, 0.2*inch))
         
@@ -474,13 +484,13 @@ class PDFItineraryGenerator:
                 ))
         
         for i, (name, cuisine, price, address) in enumerate(sorted(restaurants), 1):
-            restaurant_text = (
+            restaurant_para = Paragraph(
                 f"<b>{i}. {name}</b><br/>"
-                f"<font size=9 color='#{self.COLOR_GRAY.hexval()[2:]}'>"
+                f"<font size=9 color='#6B7280'>"
                 f"{cuisine} • Rp {price:,.0f}/person<br/>"
-                f"{address}</font>"
+                f"{address}</font>",
+                self.styles['CustomBody']
             )
-            restaurant_para = Paragraph(restaurant_text, self.styles['CustomBody'])
             elements.append(restaurant_para)
             elements.append(Spacer(1, 0.1*inch))
         
@@ -492,7 +502,7 @@ class PDFItineraryGenerator:
         """Create budget breakdown"""
         elements = []
         
-        header = Paragraph("💰 BUDGET BREAKDOWN", self.styles['SectionHeader'])
+        header = Paragraph(" BUDGET BREAKDOWN", self.styles['SectionHeader'])
         elements.append(header)
         elements.append(Spacer(1, 0.2*inch))
         
@@ -562,13 +572,13 @@ class PDFItineraryGenerator:
         """Create important notes section"""
         elements = []
         
-        header = Paragraph("📌 IMPORTANT NOTES", self.styles['SectionHeader'])
+        header = Paragraph(" IMPORTANT NOTES", self.styles['SectionHeader'])
         elements.append(header)
         elements.append(Spacer(1, 0.2*inch))
         
         # Warnings
         if trip_plan.warnings:
-            warning_header = Paragraph("⚠️ Warnings:", self.styles['SubsectionHeader'])
+            warning_header = Paragraph(" Warnings:", self.styles['SubsectionHeader'])
             elements.append(warning_header)
             
             for warning in trip_plan.warnings[:5]:
@@ -579,7 +589,7 @@ class PDFItineraryGenerator:
             elements.append(Spacer(1, 0.2*inch))
         
         # General tips
-        tips_header = Paragraph("✅ Tips:", self.styles['SubsectionHeader'])
+        tips_header = Paragraph(" Tips:", self.styles['SubsectionHeader'])
         elements.append(tips_header)
         
         tips = [

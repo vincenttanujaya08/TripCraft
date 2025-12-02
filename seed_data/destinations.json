@@ -68,7 +68,7 @@
           "name": "Grand Palace",
           "type": "palace",
           "description": "Magnificent royal complex with ornate buildings and the revered Emerald Buddha",
-          "entrance_fee": 500,
+          "entrance_fee": 230000,
           "estimated_duration_hours": 3.0,
           "opening_hours": "08:30-15:30"
         },
@@ -76,7 +76,7 @@
           "name": "Wat Pho",
           "type": "temple",
           "description": "Home to the famous 46-meter reclining Buddha covered in gold leaf",
-          "entrance_fee": 200,
+          "entrance_fee": 92000,
           "estimated_duration_hours": 1.5,
           "opening_hours": "08:00-18:30"
         },
@@ -109,7 +109,7 @@
           "name": "Gardens by the Bay",
           "type": "park",
           "description": "Futuristic garden with iconic Supertree Grove and climate-controlled domes",
-          "entrance_fee": 28,
+          "entrance_fee": 330000,
           "estimated_duration_hours": 3.0,
           "opening_hours": "05:00-02:00"
         },
@@ -117,7 +117,7 @@
           "name": "Marina Bay Sands SkyPark",
           "type": "observation",
           "description": "Rooftop observation deck with panoramic city views",
-          "entrance_fee": 23,
+          "entrance_fee": 271000,
           "estimated_duration_hours": 1.5,
           "opening_hours": "11:00-21:00"
         },
@@ -191,7 +191,7 @@
           "name": "Gyeongbokgung Palace",
           "type": "palace",
           "description": "Largest and most iconic of Seoul's five grand palaces",
-          "entrance_fee": 3000,
+          "entrance_fee": 36000,
           "estimated_duration_hours": 2.5,
           "opening_hours": "09:00-18:00"
         },
@@ -199,7 +199,7 @@
           "name": "N Seoul Tower",
           "type": "observation",
           "description": "Iconic tower on Namsan Mountain with panoramic city views",
-          "entrance_fee": 15000,
+          "entrance_fee": 180000,
           "estimated_duration_hours": 2.0,
           "opening_hours": "10:00-23:00"
         },
@@ -232,7 +232,7 @@
           "name": "Petronas Twin Towers",
           "type": "landmark",
           "description": "Iconic 88-story twin skyscrapers with skybridge observation deck",
-          "entrance_fee": 85,
+          "entrance_fee": 306000,
           "estimated_duration_hours": 2.0,
           "opening_hours": "09:00-21:00"
         },
@@ -273,7 +273,7 @@
           "name": "Eiffel Tower",
           "type": "landmark",
           "description": "Iconic iron lattice tower offering stunning city views",
-          "entrance_fee": 28.3,
+          "entrance_fee": 487000,
           "estimated_duration_hours": 2.5,
           "opening_hours": "09:00-00:45"
         },
@@ -281,7 +281,7 @@
           "name": "Louvre Museum",
           "type": "museum",
           "description": "World's largest art museum, home to Mona Lisa and thousands of masterpieces",
-          "entrance_fee": 17,
+          "entrance_fee": 292000,
           "estimated_duration_hours": 4.0,
           "opening_hours": "09:00-18:00"
         },
@@ -314,7 +314,7 @@
           "name": "Statue of Liberty",
           "type": "monument",
           "description": "Iconic symbol of freedom on Liberty Island with museum and observation deck",
-          "entrance_fee": 24,
+          "entrance_fee": 379000,
           "estimated_duration_hours": 3.0,
           "opening_hours": "09:30-15:30"
         },
@@ -355,7 +355,7 @@
           "name": "Sagrada Familia",
           "type": "cathedral",
           "description": "Gaudí's unfinished masterpiece basilica with stunning architecture",
-          "entrance_fee": 26,
+          "entrance_fee": 447000,
           "estimated_duration_hours": 2.5,
           "opening_hours": "09:00-20:00"
         },
@@ -363,7 +363,7 @@
           "name": "Park Güell",
           "type": "park",
           "description": "Whimsical park designed by Gaudí with colorful mosaics and city views",
-          "entrance_fee": 10,
+          "entrance_fee": 172000,
           "estimated_duration_hours": 2.0,
           "opening_hours": "08:00-20:30"
         },
@@ -396,7 +396,7 @@
           "name": "Sydney Opera House",
           "type": "landmark",
           "description": "Iconic sail-shaped performing arts center on Sydney Harbour",
-          "entrance_fee": 42,
+          "entrance_fee": 445000,
           "estimated_duration_hours": 2.0,
           "opening_hours": "09:00-17:00"
         },
@@ -412,7 +412,7 @@
           "name": "Taronga Zoo",
           "type": "zoo",
           "description": "Harbourside zoo with native Australian animals and city views",
-          "entrance_fee": 54,
+          "entrance_fee": 572000,
           "estimated_duration_hours": 4.0,
           "opening_hours": "09:30-16:30"
         }

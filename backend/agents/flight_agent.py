@@ -1,10 +1,15 @@
 """
-FlightAgent - UPDATED with 5-Tier Strategy
+FlightAgent - COMPLETE FIXED VERSION
 - Tier 1: Amadeus API (real data)
-- Tier 2: SmartRetriever seed data
-- Tier 3: LLM Fallback (estimated flights)
-- Tier 4: Ground Transport (train/bus/ferry)
+- Tier 2: SmartRetriever seed data  
+- Tier 3: LLM Fallback with REALISTIC pricing ✅ FIXED!
+- Tier 4: Ground Transport
 - Tier 5: Empty with warning
+
+KEY FIXES:
+✅ Added REALISTIC_PRICES constants (500k-8M IDR based on route type)
+✅ Added _estimate_route_category() method 
+✅ Fixed LLM fallback price generation (Bandung Rp 260 → Rp 850,000)
 """
 import logging
 from datetime import datetime, date, timedelta
@@ -25,6 +30,17 @@ logger = logging.getLogger(f"agent.Flight")
 class FlightAgent(BaseAgent):
     """Agent responsible for finding flight options with 5-tier fallback strategy"""
     
+    # ========================================================================
+    # REALISTIC PRICE RANGES - FIXED! ✅
+    # ========================================================================
+    REALISTIC_PRICES = {
+        "short_domestic": {"min": 500000, "max": 1200000},      # Jakarta-Bandung
+        "medium_domestic": {"min": 800000, "max": 2000000},     # Jakarta-Bali
+        "long_domestic": {"min": 1500000, "max": 3500000},      # Jakarta-Papua
+        "asean": {"min": 1000000, "max": 3000000},              # Singapore, Malaysia
+        "asia_near": {"min": 3000000, "max": 8000000},          # Japan, Korea
+    }
+    
     def __init__(self):
         """Initialize with Amadeus client, SmartRetriever, and LLM fallback"""
         super().__init__("Flight")
@@ -36,7 +52,7 @@ class FlightAgent(BaseAgent):
         from backend.data_sources.smart_retriever import SmartRetriever
         self.retriever = SmartRetriever()
         
-        # Tier 3: LLM (via amadeus_client which has Gemini)
+        # Tier 3: LLM
         self.llm_enabled = self.amadeus_client.llm_enabled
         
         if self.amadeus_client.enabled:
@@ -45,7 +61,7 @@ class FlightAgent(BaseAgent):
             logger.warning("⚠️  Amadeus API not available - using fallback only")
         
         if self.llm_enabled:
-            logger.info("✅ LLM fallback enabled for flight estimation")
+            logger.info("✅ LLM fallback enabled with REALISTIC pricing")
     
     def _map_accommodation_to_cabin(self, accommodation: str) -> str:
         """Map accommodation preference to flight cabin class"""
@@ -57,29 +73,53 @@ class FlightAgent(BaseAgent):
         }
         return mapping.get(accommodation.lower(), 'economy')
     
+    def _estimate_route_category(self, origin: str, destination: str) -> str:
+        """
+        Estimate flight category for realistic pricing ✅ NEW METHOD!
+        
+        Returns category name for REALISTIC_PRICES lookup
+        """
+        indo_cities = ["jakarta", "bali", "surabaya", "yogyakarta", "bandung", 
+                       "medan", "makassar", "lombok", "semarang", "malang"]
+        asean = ["singapore", "malaysia", "thailand", "vietnam", "philippines"]
+        
+        origin_lower = origin.lower()
+        dest_lower = destination.lower()
+        
+        # Both Indonesian = domestic
+        if any(c in origin_lower for c in indo_cities) and \
+           any(c in dest_lower for c in indo_cities):
+            
+            # Special cases for known short routes
+            short_routes = [("jakarta", "bandung"), ("surabaya", "bali"), ("jakarta", "yogyakarta")]
+            for o, d in short_routes:
+                if (o in origin_lower and d in dest_lower) or \
+                   (d in origin_lower and o in dest_lower):
+                    return "short_domestic"
+            
+            # Default domestic
+            return "medium_domestic"
+        
+        # ASEAN countries
+        if any(c in origin_lower for c in asean) or \
+           any(c in dest_lower for c in asean):
+            return "asean"
+        
+        # Default: Asia near
+        return "asia_near"
+    
     async def execute(
         self, 
         request: TripRequest,
         max_budget: Optional[float] = None,
         context: Optional[Dict] = None
     ) -> FlightOutput:
-        """
-        Find suitable flights with 5-tier fallback strategy
-        
-        Args:
-            request: Trip planning request
-            max_budget: Maximum budget allocated for flights (optional)
-            context: Shared context from orchestrator (optional)
-            
-        Returns:
-            FlightOutput with flight options and warnings
-        """
+        """Find suitable flights with 5-tier fallback strategy"""
         self.logger.info("🚀 Flight agent starting...")
         start_time = datetime.now()
         
         warnings = []
         
-        # Calculate budget if provided
         if max_budget:
             per_person_budget = max_budget / request.travelers
             self.logger.info(f"💰 Flight budget: Rp {max_budget:,.0f} (Rp {per_person_budget:,.0f}/person)")
@@ -87,7 +127,6 @@ class FlightAgent(BaseAgent):
             per_person_budget = None
         
         try:
-            # Map accommodation to cabin class
             cabin_class = self._map_accommodation_to_cabin(
                 request.preferences.accommodation
             )
@@ -97,14 +136,14 @@ class FlightAgent(BaseAgent):
                 request, cabin_class, warnings
             )
             
-            # TIER 2: Fallback to SmartRetriever if Amadeus failed
+            # TIER 2: Fallback to SmartRetriever
             if not flights_data:
-                self.logger.warning("⚠️  Amadeus API failed/empty - trying SmartRetriever fallback")
+                self.logger.warning("⚠️  Amadeus API failed/empty - trying SmartRetriever")
                 flights_data, data_source = await self._try_smart_retriever_fallback(
                     request, cabin_class
                 )
             
-            # TIER 3: LLM Fallback for flight estimation
+            # TIER 3: LLM Fallback with REALISTIC PRICES ✅
             if not flights_data:
                 self.logger.warning("⚠️  SmartRetriever empty - trying LLM fallback")
                 flights_data, data_source = await self._try_llm_fallback(
@@ -113,9 +152,8 @@ class FlightAgent(BaseAgent):
             
             # TIER 4: Check ground transport
             if not flights_data:
-                self.logger.warning("⚠️  No flights available - checking ground transport")
+                self.logger.warning("⚠️  No flights - checking ground transport")
                 duration = (datetime.now() - start_time).total_seconds() * 1000
-                
                 return await self._try_ground_transport_fallback(
                     request, warnings, "no_flights", duration
                 )
@@ -129,7 +167,7 @@ class FlightAgent(BaseAgent):
                     request, warnings, data_source, duration
                 )
             
-            # Separate outbound and return flights
+            # Separate outbound and return
             outbound_flights = []
             return_flights = []
             
@@ -178,7 +216,7 @@ class FlightAgent(BaseAgent):
                     f"(+{over_pct:.1f}%)"
                 )
                 
-                # Check if ground transport is viable
+                # Check ground transport
                 ground_data, _ = self.retriever.get_ground_transport(
                     origin=request.origin or "Jakarta",
                     destination=request.destination
@@ -200,7 +238,7 @@ class FlightAgent(BaseAgent):
                 else:
                     warnings.append(
                         f"⚠️  Flight exceeds budget by Rp {over_amount:,.0f} ({over_pct:.1f}%). "
-                        f"Options: 1) Increase total budget, 2) Change dates, 3) Reduce hotel budget"
+                        f"Options: 1) Increase budget, 2) Change dates, 3) Reduce hotel budget"
                     )
             
             # Calculate confidence
@@ -244,39 +282,24 @@ class FlightAgent(BaseAgent):
         cabin_class: str,
         warnings: List[str]
     ) -> Tuple[List[dict], str]:
-        """
-        TIER 1: Try to get flights from Amadeus API
-        
-        Returns:
-            (flights_data, data_source)
-        """
+        """TIER 1: Try Amadeus API"""
         
         if not self.amadeus_client.enabled:
-            self.logger.warning("Amadeus API not enabled")
             return [], "seed"
         
         try:
-            # Resolve airport codes using LLM
             origin = request.origin or "Jakarta"
             destination = request.destination
             
-            self.logger.info(f"🔍 [Tier 1] Resolving airport codes: {origin} → {destination}")
+            self.logger.info(f"🔍 [Tier 1] Resolving: {origin} → {destination}")
             
             origin_code = self.amadeus_client.get_airport_code(origin)
             dest_code = self.amadeus_client.get_airport_code(destination)
             
-            if not origin_code:
-                self.logger.warning(f"⚠️  Could not resolve origin airport code: {origin}")
+            if not origin_code or not dest_code:
                 return [], "seed"
             
-            if not dest_code:
-                self.logger.warning(f"⚠️  Could not resolve destination airport code: {destination}")
-                return [], "seed"
-            
-            self.logger.info(f"✅ Airport codes: {origin} ({origin_code}) → {destination} ({dest_code})")
-            
-            # Call Amadeus API
-            self.logger.info(f"🛫 [Tier 1] Searching Amadeus API...")
+            self.logger.info(f"✅ Codes: {origin_code} → {dest_code}")
             
             flights_data = await self.amadeus_client.search_flights(
                 origin=origin_code,
@@ -290,20 +313,18 @@ class FlightAgent(BaseAgent):
             )
             
             if flights_data:
-                self.logger.info(f"✅ [Tier 1] Amadeus API returned {len(flights_data)} flight offers")
+                self.logger.info(f"✅ [Tier 1] Got {len(flights_data)} flights")
                 return flights_data, "amadeus_api"
             else:
-                self.logger.warning("⚠️  [Tier 1] Amadeus API returned no results")
                 return [], "seed"
         
         except DateValidationError as e:
-            # Date validation error - add to warnings but don't crash
-            self.logger.error(f"❌ Date validation error: {e}")
+            self.logger.error(f"❌ Date error: {e}")
             warnings.append(f"Date validation error: {str(e)}")
             return [], "seed"
         
         except Exception as e:
-            self.logger.error(f"❌ [Tier 1] Amadeus API error: {e}")
+            self.logger.error(f"❌ [Tier 1] Error: {e}")
             return [], "seed"
     
     async def _try_smart_retriever_fallback(
@@ -311,15 +332,10 @@ class FlightAgent(BaseAgent):
         request: TripRequest,
         cabin_class: str
     ) -> Tuple[List[dict], str]:
-        """
-        TIER 2: Fallback to SmartRetriever seed data
-        
-        Returns:
-            (flights_data, data_source)
-        """
+        """TIER 2: SmartRetriever seed data"""
         
         try:
-            self.logger.info("🔄 [Tier 2] Using SmartRetriever fallback...")
+            self.logger.info("🔄 [Tier 2] Using SmartRetriever...")
             
             flights_data, data_source = await self.retriever.get_flights(
                 origin=request.origin or "Jakarta",
@@ -331,14 +347,12 @@ class FlightAgent(BaseAgent):
             )
             
             if flights_data:
-                self.logger.info(f"✅ [Tier 2] SmartRetriever returned {len(flights_data)} flights")
-            else:
-                self.logger.warning("⚠️  [Tier 2] SmartRetriever returned no results")
+                self.logger.info(f"✅ [Tier 2] Got {len(flights_data)} flights")
             
             return flights_data, data_source
         
         except Exception as e:
-            self.logger.error(f"❌ [Tier 2] SmartRetriever fallback error: {e}")
+            self.logger.error(f"❌ [Tier 2] Error: {e}")
             return [], "seed"
     
     async def _try_llm_fallback(
@@ -347,78 +361,39 @@ class FlightAgent(BaseAgent):
         cabin_class: str,
         warnings: List[str]
     ) -> Tuple[List[dict], str]:
-        """
-        TIER 3: Use LLM to generate estimated flight prices
-        
-        Returns:
-            (flights_data, data_source)
-        """
+        """TIER 3: LLM with REALISTIC PRICES ✅ FIXED!"""
         
         if not self.llm_enabled:
-            self.logger.warning("LLM not available for fallback")
             return [], "llm_unavailable"
         
         try:
-            self.logger.info("🧠 [Tier 3] Using LLM to estimate flight prices...")
+            self.logger.info("🧠 [Tier 3] LLM fallback with realistic pricing...")
             
-            # Import Gemini
             import google.generativeai as genai
             
             origin = request.origin or "Jakarta"
             destination = request.destination
             
-            # Create prompt for LLM
-            prompt = f"""You are an aviation pricing expert. Estimate realistic flight prices for this route.
+            prompt = f"""Aviation expert: Check if {origin} → {destination} has major airports.
 
-Route: {origin} → {destination}
-Departure Date: {request.start_date}
-Return Date: {request.end_date}
-Travelers: {request.travelers}
-Cabin Class: {cabin_class}
-
-CRITICAL RULES:
-1. If this route has NO MAJOR AIRPORT at origin or destination, return exactly: NO_AIRPORT
-2. Otherwise, estimate realistic prices in IDR (Indonesian Rupiah)
-3. Consider: distance, route popularity, season, cabin class
-4. Return ONLY valid JSON, no markdown, no explanations
-
-If airports exist, return JSON:
-{{
-  "has_airport": true,
-  "outbound_price_per_person": <number>,
-  "return_price_per_person": <number>,
-  "estimated_duration_hours": <number>,
-  "airline_suggestion": "<airline name>",
-  "confidence": "low|medium|high"
-}}
-
-If NO airport:
-{{
-  "has_airport": false,
-  "reason": "No major airport in origin/destination"
-}}
+RULES:
+1. If NO airport, return: {{"has_airport": false}}
+2. If has airport, return: {{"has_airport": true, "estimated_duration_hours": X}}
+3. ONLY JSON, no markdown
 
 Examples:
-Jakarta → Bali: {{"has_airport": true, "outbound_price_per_person": 1500000, "return_price_per_person": 1500000, "estimated_duration_hours": 2.0, "airline_suggestion": "Garuda Indonesia", "confidence": "high"}}
-Jakarta → Malang: {{"has_airport": true, "outbound_price_per_person": 800000, "return_price_per_person": 800000, "estimated_duration_hours": 1.5, "airline_suggestion": "Lion Air", "confidence": "medium"}}
-Jakarta → Small Village: {{"has_airport": false, "reason": "No major airport in destination"}}
+Jakarta → Bali: {{"has_airport": true, "estimated_duration_hours": 2.0}}
+Jakarta → Village: {{"has_airport": false}}
 
-Your JSON response:"""
+Your JSON:"""
 
             response = self.amadeus_client.llm_model.generate_content(
                 prompt,
-                generation_config={
-                    "temperature": 0.2,
-                    "top_p": 0.9,
-                    "max_output_tokens": 300,
-                }
+                generation_config={"temperature": 0.2, "max_output_tokens": 100}
             )
             
-            # Parse JSON response
             import json
             text = response.text.strip()
-            
-            # Remove markdown if present
             if text.startswith("```"):
                 text = text.split("```")[1]
                 if text.startswith("json"):
@@ -427,62 +402,73 @@ Your JSON response:"""
             
             data = json.loads(text)
             
-            # Check if route has airport
             if not data.get("has_airport", False):
-                reason = data.get("reason", "No airport available")
-                self.logger.warning(f"⚠️  [Tier 3] LLM says: {reason}")
+                self.logger.warning(f"⚠️  [Tier 3] No airport")
                 return [], "no_airport"
             
-            # Generate estimated flights
-            outbound_price = data.get("outbound_price_per_person", 1000000)
-            return_price = data.get("return_price_per_person", 1000000)
+            # ========================================================================
+            # ✅ FIXED: Use REALISTIC prices instead of LLM estimates!
+            # ========================================================================
             duration_hours = data.get("estimated_duration_hours", 2.0)
-            airline = data.get("airline_suggestion", "Estimated Airline")
             
-            # Create estimated flight data
+            # Determine route category
+            category = self._estimate_route_category(origin, destination)
+            price_range = self.REALISTIC_PRICES.get(category, self.REALISTIC_PRICES["medium_domestic"])
+            
+            # Calculate with ±15% variation
+            import random
+            avg_price = (price_range["min"] + price_range["max"]) // 2
+            variation = random.uniform(0.85, 1.15)
+            outbound_price = int(avg_price * variation)
+            return_price = int(avg_price * variation)
+            
+            self.logger.info(f"   💰 Realistic ({category}): Rp {outbound_price:,.0f}/person")
+            # ========================================================================
+            
+            # Create flight data
             flights_data = []
             
-            # Outbound flight
-            departure_time = datetime.combine(request.start_date, datetime.min.time().replace(hour=8))
-            arrival_time = departure_time + timedelta(hours=duration_hours)
+            # Outbound
+            departure = datetime.combine(request.start_date, datetime.min.time().replace(hour=8))
+            arrival = departure + timedelta(hours=duration_hours)
             
             flights_data.append({
-                "airline": airline,
+                "airline": "Estimated Airline",
                 "flight_number": "EST-OUT",
                 "departure_airport": origin[:3].upper(),
                 "arrival_airport": destination[:3].upper(),
-                "departure_time": departure_time.isoformat(),
-                "arrival_time": arrival_time.isoformat(),
+                "departure_time": departure.isoformat(),
+                "arrival_time": arrival.isoformat(),
                 "duration_hours": duration_hours,
                 "price": outbound_price,
                 "stops": 0,
                 "cabin_class": cabin_class
             })
             
-            # Return flight
-            return_departure = datetime.combine(request.end_date, datetime.min.time().replace(hour=16))
-            return_arrival = return_departure + timedelta(hours=duration_hours)
+            # Return
+            return_dep = datetime.combine(request.end_date, datetime.min.time().replace(hour=16))
+            return_arr = return_dep + timedelta(hours=duration_hours)
             
             flights_data.append({
-                "airline": airline,
+                "airline": "Estimated Airline",
                 "flight_number": "EST-RET",
                 "departure_airport": destination[:3].upper(),
                 "arrival_airport": origin[:3].upper(),
-                "departure_time": return_departure.isoformat(),
-                "arrival_time": return_arrival.isoformat(),
+                "departure_time": return_dep.isoformat(),
+                "arrival_time": return_arr.isoformat(),
                 "duration_hours": duration_hours,
                 "price": return_price,
                 "stops": 0,
                 "cabin_class": cabin_class
             })
             
-            self.logger.info(f"✅ [Tier 3] LLM generated {len(flights_data)} estimated flights")
-            warnings.append("🤖 Flight prices are AI estimates based on typical routes - VERIFY before booking")
+            self.logger.info(f"✅ [Tier 3] Generated {len(flights_data)} realistic flights")
+            warnings.append("🤖 Flight prices are AI estimates - VERIFY before booking")
             
             return flights_data, "llm_fallback"
         
         except Exception as e:
-            self.logger.error(f"❌ [Tier 3] LLM fallback error: {e}")
+            self.logger.error(f"❌ [Tier 3] Error: {e}")
             return [], "llm_error"
     
     async def _try_ground_transport_fallback(
@@ -492,11 +478,9 @@ Your JSON response:"""
         data_source: str,
         duration: float
     ) -> FlightOutput:
-        """
-        TIER 4: Fallback to ground transport if flights not available
-        """
+        """TIER 4: Ground transport"""
         
-        self.logger.info("🚂 [Tier 4] Checking ground transport as alternative...")
+        self.logger.info("🚂 [Tier 4] Checking ground transport...")
         
         ground_data, _ = self.retriever.get_ground_transport(
             origin=request.origin or "Jakarta",
@@ -512,18 +496,14 @@ Your JSON response:"""
             
             if cheapest:
                 warnings.append(
-                    f"✈️  No flights available for this route. "
+                    f"✈️  No flights available. "
                     f"Alternative: {cheapest['transport_type'].title()} "
-                    f"({cheapest['name']}) - Rp {cheapest['cost_per_person']:,.0f}/person "
-                    f"({cheapest['duration_hours']}h). Contact travel agent to book."
+                    f"- Rp {cheapest['cost_per_person']:,.0f}/person ({cheapest['duration_hours']}h)"
                 )
-                self.logger.info(f"✅ [Tier 4] Ground transport available: {cheapest['transport_type']}")
         else:
             warnings.append(
-                f"❌ No flights or ground transport found for {request.origin} → {request.destination}. "
-                f"This route may not be directly accessible."
+                f"❌ No flights or ground transport for this route"
             )
-            self.logger.warning("⚠️  [Tier 4] No ground transport available either")
         
         return FlightOutput(
             outbound_flights=[],
@@ -549,108 +529,83 @@ Your JSON response:"""
         
         for flight_data in flights_data:
             try:
-                # Parse based on data source
                 if data_source == "amadeus_api":
                     flight = self._parse_amadeus_flight(flight_data)
                 else:
-                    # Works for both SmartRetriever and LLM fallback
                     flight = self._parse_retriever_flight(flight_data)
                 
                 if flight:
                     flights.append(flight)
                 
             except Exception as e:
-                self.logger.warning(f"Failed to parse flight: {e}")
+                self.logger.warning(f"Parse failed: {e}")
                 continue
         
         return flights
     
     def _parse_amadeus_flight(self, flight_data: dict) -> Optional[Flight]:
-        """Parse Amadeus API flight format"""
-        
+        """Parse Amadeus format"""
         try:
-            departure_time = datetime.fromisoformat(
-                flight_data['departure_time'].replace('Z', '+00:00')
-            )
-            arrival_time = datetime.fromisoformat(
-                flight_data['arrival_time'].replace('Z', '+00:00')
-            )
-            
-            flight = Flight(
+            return Flight(
                 airline=flight_data.get('airline', 'Unknown'),
                 flight_number=flight_data.get('flight_number', 'UNKNOWN'),
                 departure_airport=flight_data.get('departure_airport', ''),
                 arrival_airport=flight_data.get('arrival_airport', ''),
-                departure_time=departure_time,
-                arrival_time=arrival_time,
+                departure_time=datetime.fromisoformat(
+                    flight_data['departure_time'].replace('Z', '+00:00')
+                ),
+                arrival_time=datetime.fromisoformat(
+                    flight_data['arrival_time'].replace('Z', '+00:00')
+                ),
                 duration_hours=flight_data.get('duration_hours', 0),
                 price=flight_data.get('price', 0),
                 stops=flight_data.get('stops', 0),
                 cabin_class=flight_data.get('cabin_class', 'economy')
             )
-            
-            return flight
-            
         except Exception as e:
-            self.logger.warning(f"Failed to parse Amadeus flight: {e}")
+            self.logger.warning(f"Parse Amadeus failed: {e}")
             return None
     
     def _parse_retriever_flight(self, flight_data: dict) -> Optional[Flight]:
-        """Parse SmartRetriever/LLM flight format"""
-        
+        """Parse SmartRetriever/LLM format"""
         try:
-            departure_time = datetime.fromisoformat(
-                flight_data['departure_time'].replace('Z', '+00:00')
-            )
-            arrival_time = datetime.fromisoformat(
-                flight_data['arrival_time'].replace('Z', '+00:00')
-            )
-            
-            flight = Flight(
+            return Flight(
                 airline=flight_data.get('airline', 'Unknown'),
                 flight_number=flight_data.get('flight_number', 'UNKNOWN'),
                 departure_airport=flight_data.get('departure_airport', ''),
                 arrival_airport=flight_data.get('arrival_airport', ''),
-                departure_time=departure_time,
-                arrival_time=arrival_time,
+                departure_time=datetime.fromisoformat(
+                    flight_data['departure_time'].replace('Z', '+00:00')
+                ),
+                arrival_time=datetime.fromisoformat(
+                    flight_data['arrival_time'].replace('Z', '+00:00')
+                ),
                 duration_hours=flight_data.get('duration_hours', 0),
                 price=flight_data.get('price', 0),
                 stops=flight_data.get('stops', 0),
                 cabin_class=flight_data.get('cabin_class', 'economy')
             )
-            
-            return flight
-            
         except Exception as e:
-            self.logger.warning(f"Failed to parse retriever flight: {e}")
+            self.logger.warning(f"Parse retriever failed: {e}")
             return None
     
     def _generate_return_flight(self, outbound: Flight, request: TripRequest) -> Flight:
-        """Generate return flight based on outbound"""
-        
-        return_flight = Flight(
+        """Generate return flight"""
+        return Flight(
             airline=outbound.airline,
             flight_number=outbound.flight_number.replace('OUT', 'RET'),
             departure_airport=outbound.arrival_airport,
             arrival_airport=outbound.departure_airport,
-            departure_time=datetime.combine(
-                request.end_date,
-                outbound.departure_time.time()
-            ),
-            arrival_time=datetime.combine(
-                request.end_date,
-                outbound.arrival_time.time()
-            ),
+            departure_time=datetime.combine(request.end_date, outbound.departure_time.time()),
+            arrival_time=datetime.combine(request.end_date, outbound.arrival_time.time()),
             duration_hours=outbound.duration_hours,
             price=outbound.price,
             stops=outbound.stops,
             cabin_class=outbound.cabin_class
         )
-        
-        return return_flight
     
     def _create_metadata(self, data_source: str, duration: float) -> dict:
-        """Create metadata dictionary"""
+        """Create metadata"""
         return {
             "agent": self.name,
             "data_source": data_source,
@@ -659,12 +614,12 @@ Your JSON response:"""
         }
     
     def _calculate_confidence(self, source: str, data_quality_score: int) -> float:
-        """Calculate confidence score"""
+        """Calculate confidence"""
         base_confidence = {
-            "amadeus_api": 0.95,  # Highest - real API data
+            "amadeus_api": 0.95,
             "api": 0.95,
             "seed": 0.80,
-            "llm_fallback": 0.60,  # Lower - AI estimates
+            "llm_fallback": 0.60,
             "no_airport": 0.0,
             "no_flights": 0.0
         }

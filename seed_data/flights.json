@@ -69,8 +69,8 @@
       "departure_time": "23:55",
       "arrival_time": "07:30",
       "duration_hours": 7.0,
-      "price_range_min": 400,
-      "price_range_max": 1200
+      "price_range_min": 4000000,
+      "price_range_max": 12000000
     },
     {
       "route": "Seoul-Tokyo",
@@ -81,8 +81,8 @@
       "departure_time": "10:00",
       "arrival_time": "12:30",
       "duration_hours": 2.5,
-      "price_range_min": 200,
-      "price_range_max": 600
+      "price_range_min": 2000000,
+      "price_range_max": 6000000
     },
     {
       "route": "Bangkok-Tokyo",
@@ -93,8 +93,8 @@
       "departure_time": "23:40",
       "arrival_time": "07:10",
       "duration_hours": 6.5,
-      "price_range_min": 300,
-      "price_range_max": 900
+      "price_range_min": 3000000,
+      "price_range_max": 9000000
     },
     {
       "route": "Singapore-Bangkok",
@@ -105,8 +105,8 @@
       "departure_time": "14:00",
       "arrival_time": "15:15",
       "duration_hours": 2.5,
-      "price_range_min": 100,
-      "price_range_max": 350
+      "price_range_min": 1000000,
+      "price_range_max": 3500000
     },
     {
       "route": "Kuala Lumpur-Bangkok",
@@ -117,8 +117,8 @@
       "departure_time": "11:30",
       "arrival_time": "12:30",
       "duration_hours": 2.0,
-      "price_range_min": 50,
-      "price_range_max": 180
+      "price_range_min": 500000,
+      "price_range_max": 1800000
     }
   ]
 }
