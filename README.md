@@ -297,8 +297,7 @@ This is a portfolio project, but suggestions are welcome!
 
 ## 📧 Contact
 
-[Your Name] - [Your Email]
-Portfolio: [Your Portfolio URL]
+[Vincentius Tanujaya] - [vincenttanujaya08]
 
 ---
 
