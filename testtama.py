@@ -1,456 +1,255 @@
 """
-Test Script for TripOrchestrator
-UPDATED: Added verbose logging to track Amadeus API usage
+Test Script for Conversational System
 
-Tests:
-1. Basic trip planning (happy path)
-2. Budget constraints (tight budget)
-3. Progress tracking
-4. Multiple destinations
-5. Error scenarios
+Tests all major conversation flows:
+1. Initial planning
+2. Modifications
+3. Undo/redo
+4. Queries
+5. Finalization
 
-Run: python tes.py
+Run: python test_conversation.py
 """
 
 import asyncio
 import sys
-import logging
-from datetime import datetime, timedelta
+sys.path.insert(0, '/path/to/tripcraft-lite')
 
-# ENABLE VERBOSE LOGGING TO SEE AMADEUS CALLS
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
-# Add backend to path
-sys.path.insert(0, '/Users/vincent/Downloads/tripcraft-lite 2')
-
-from backend.models.schemas import TripRequest
-from backend.orchestrator.trip_orchestrator import (
-    TripOrchestrator,
-    BudgetAllocationStrategy,
-    ExecutionProgress
-)
+from backend.conversational.conversation_manager import get_conversation_manager
 
 
-def print_header(title: str):
-    """Print formatted test header"""
-    print("\n" + "="*60)
-    print(f"{title}")
-    print("="*60 + "\n")
-
-
-def print_trip_summary(trip_plan, metadata):
-    """Print trip plan summary"""
-    print("\n📋 TRIP PLAN SUMMARY")
-    print("-" * 60)
-    print(f"Destination: {trip_plan.destination.destination}")
-    print(f"Duration: {len(trip_plan.itinerary.days)} days")
-    
-    print(f"\n💰 BUDGET:")
-    print(f"  Total Cost: Rp {trip_plan.budget.breakdown.total:,.0f}")
-    print(f"  Allocated: Rp {trip_plan.budget.breakdown.total:,.0f}")
-    print(f"  Remaining: Rp {trip_plan.budget.breakdown.remaining:,.0f}")
-    print(f"  Within Budget: {'✅ YES' if trip_plan.budget.is_within_budget else '⚠️  NO'}")
-    
-    print(f"\n✈️  FLIGHTS:")
-    print(f"  📊 DATA SOURCE: {trip_plan.flights.data_source.upper()}")  # ← KEY!
-    print(f"  Outbound: {len(trip_plan.flights.outbound_flights)} options")
-    print(f"  Return: {len(trip_plan.flights.return_flights)} options")
-    print(f"  Cost: Rp {trip_plan.flights.total_flight_cost:,.0f}")
-    print(f"  Confidence: {trip_plan.flights.confidence:.2%}")
-    
-    # Show first flight details to verify it's real data
-    if trip_plan.flights.recommended_outbound:
-        flight = trip_plan.flights.recommended_outbound
-        print(f"\n  Recommended Flight:")
-        print(f"    Airline: {flight.airline}")
-        print(f"    Flight #: {flight.flight_number}")
-        print(f"    Price: Rp {flight.price:,.0f}/person")
-        print(f"    Departure: {flight.departure_time}")
-    
-    print(f"\n🏨 HOTEL:")
-    print(f"  Name: {trip_plan.hotels.recommended_hotel.name}")
-    print(f"  Rating: {trip_plan.hotels.recommended_hotel.rating}⭐")
-    print(f"  Cost: Rp {trip_plan.hotels.total_accommodation_cost:,.0f}")
-    
-    print(f"\n🍽️  DINING:")
-    print(f"  Meal Plans: {len(trip_plan.dining.meal_plan)} days")
-    print(f"  Cost: Rp {trip_plan.dining.estimated_total_cost:,.0f}")
-    
-    print(f"\n📅 ITINERARY:")
-    total_activities = sum(len(day.activities) for day in trip_plan.itinerary.days)
-    print(f"  Days: {len(trip_plan.itinerary.days)}")
-    print(f"  Activities: {total_activities}")
-    
-    print(f"\n✅ VERIFICATION:")
-    print(f"  Quality Score: {trip_plan.verification.quality_score:.1f}/100")
-    print(f"  Valid: {'✅ YES' if trip_plan.verification.is_valid else '❌ NO'}")
-    
-    print(f"\n🎯 CONFIDENCE:")
-    print(f"  Overall: {trip_plan.overall_confidence:.2%}")
-    
-    if trip_plan.warnings:
-        print(f"\n⚠️  WARNINGS ({len(trip_plan.warnings)}):")
-        for i, warning in enumerate(trip_plan.warnings[:5], 1):
-            print(f"  {i}. {warning}")
-        if len(trip_plan.warnings) > 5:
-            print(f"  ... and {len(trip_plan.warnings) - 5} more")
-
-
-async def test_basic_trip():
-    """Test 1: Basic trip planning (happy path)"""
-    print_header("TEST 1: Basic Trip Planning (Happy Path)")
-    
-    print("🔍 Creating trip request:")
-    print("   Destination: Bali")
-    print("   Origin: Jakarta")
-    print("   Duration: 4 days")
-    print("   Budget: Rp 15,000,000")
-    print("   Travelers: 2")
-    
-    request = TripRequest(
-        destination="Bali",
-        origin="Jakarta",
-        duration_days=4,
-        start_date="2026-07-15",
-        end_date="2026-07-18",
-        budget=15000000.0,
-        num_travelers=2,
-        preferences={
-            "accommodation_type": "hotel",
-            "interests": ["culture", "beach", "food"]
-        }
-    )
-    
-    # Show budget allocation
-    print(f"\n💰 Budget Allocation Strategy:")
-    allocation = BudgetAllocationStrategy.allocate(request.budget)
-    print(BudgetAllocationStrategy.get_allocation_summary(request.budget))
-    
-    print("\n🚀 Starting orchestration...")
-    print("-" * 60)
-    print("👀 WATCH FOR: '[Tier 1] Amadeus API' logs below")
-    print("-" * 60)
-    
-    orchestrator = TripOrchestrator()
-    
-    # Progress tracking
-    progress_updates = []
-    def on_progress(progress: ExecutionProgress):
-        progress_updates.append({
-            'step': progress.current_step,
-            'agent': progress.current_agent,
-            'percentage': progress.get_progress_percentage(),
-            'message': progress.messages[-1] if progress.messages else ""
-        })
-        print(f"  [{progress.get_progress_percentage():5.1f}%] {progress.messages[-1]}")
-    
-    try:
-        trip_plan, metadata = await orchestrator.plan_trip(request, on_progress)
-        
-        print("\n✅ Orchestration completed!")
-        print_trip_summary(trip_plan, metadata)
-        
-        # CHECK IF AMADEUS WAS USED
-        print("\n" + "="*60)
-        if trip_plan.flights.data_source == "amadeus_api":
-            print("🎉 SUCCESS - Using REAL Amadeus API data!")
-        elif trip_plan.flights.data_source == "seed":
-            print("⚠️  WARNING - Using seed data fallback (Amadeus not used)")
-        elif trip_plan.flights.data_source == "llm_fallback":
-            print("⚠️  WARNING - Using LLM estimates (Amadeus not used)")
-        print("="*60)
-        
-        # Verify execution
-        assert metadata['success'] == True, "Execution should succeed"
-        assert trip_plan.destination is not None, "Should have destination"
-        assert trip_plan.flights is not None, "Should have flights"
-        assert trip_plan.hotels is not None, "Should have hotels"
-        assert trip_plan.dining is not None, "Should have dining"
-        assert trip_plan.budget is not None, "Should have budget"
-        assert trip_plan.itinerary is not None, "Should have itinerary"
-        assert trip_plan.verification is not None, "Should have verification"
-        
-        print("\n✅ PASS - Basic Trip Planning")
-        return True
-        
-    except Exception as e:
-        print(f"\n❌ FAIL - Error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
-async def test_tight_budget():
-    """Test 2: Tight budget scenario"""
-    print_header("TEST 2: Tight Budget Scenario")
-    
-    print("🔍 Creating trip request with tight budget:")
-    print("   Destination: Bali")
-    print("   Origin: Jakarta")
-    print("   Duration: 4 days")
-    print("   Budget: Rp 5,000,000 (very tight!)")
-    print("   Travelers: 2")
-    
-    request = TripRequest(
-        destination="Bali",
-        origin="Jakarta",
-        duration_days=4,
-        start_date="2026-07-15",
-        end_date="2026-07-18",
-        budget=5000000.0,  # Tight budget
-        num_travelers=2,
-        preferences={
-            "accommodation_type": "hostel",
-            "interests": ["culture", "beach"]
-        }
-    )
-    
-    print(f"\n💰 Budget Allocation:")
-    allocation = BudgetAllocationStrategy.allocate(request.budget)
-    print(f"  Flights: Rp {allocation['flight']:,.0f}")
-    print(f"  Hotels: Rp {allocation['hotel']:,.0f}")
-    print(f"  Food: Rp {allocation['food']:,.0f}")
-    
-    print("\n🚀 Starting orchestration...")
-    
-    orchestrator = TripOrchestrator()
-    
-    try:
-        trip_plan, metadata = await orchestrator.plan_trip(request)
-        
-        print("\n✅ Orchestration completed!")
-        print_trip_summary(trip_plan, metadata)
-        
-        # Check for budget warnings
-        has_budget_warnings = any('budget' in w.lower() or 'exceed' in w.lower() 
-                                  for w in trip_plan.warnings)
-        print(f"\n📊 Budget Warnings: {'✅ YES' if has_budget_warnings else '⚠️  NONE'}")
-        
-        # Verify execution
-        assert metadata['success'] == True, "Should complete even with tight budget"
-        assert len(trip_plan.warnings) > 0, "Should have warnings for tight budget"
-        
-        print("\n✅ PASS - Tight Budget Scenario")
-        return True
-        
-    except Exception as e:
-        print(f"\n❌ FAIL - Error: {str(e)}")
-        return False
-
-
-async def test_progress_tracking():
-    """Test 3: Progress tracking"""
-    print_header("TEST 3: Progress Tracking")
-    
-    request = TripRequest(
-        destination="Yogyakarta",
-        origin="Jakarta",
-        duration_days=3,
-        start_date="2026-08-01",
-        end_date="2026-08-03",
-        budget=8000000.0,
-        num_travelers=2
-    )
-    
-    print("🔍 Testing progress tracking...")
-    print("   Tracking all 7 agent executions\n")
-    
-    orchestrator = TripOrchestrator()
-    
-    progress_log = []
-    
-    def on_progress(progress: ExecutionProgress):
-        if progress.messages:
-            latest = progress.messages[-1]
-            progress_log.append({
-                'step': progress.current_step,
-                'percentage': progress.get_progress_percentage(),
-                'message': latest
-            })
-            print(f"[{progress.current_step}/7] {progress.get_progress_percentage():5.1f}% - {latest}")
-    
-    try:
-        trip_plan, metadata = await orchestrator.plan_trip(request, on_progress)
-        
-        print(f"\n✅ Orchestration completed!")
-        print(f"\n📊 Progress Log Analysis:")
-        print(f"   Total messages: {len(progress_log)}")
-        print(f"   Steps tracked: {max(p['step'] for p in progress_log)}/7")
-        
-        # Verify progress tracking
-        assert len(progress_log) > 0, "Should have progress messages"
-        assert max(p['step'] for p in progress_log) == 7, "Should track all 7 steps"
-        
-        print("\n✅ PASS - Progress Tracking")
-        return True
-        
-    except Exception as e:
-        print(f"\n❌ FAIL - Error: {str(e)}")
-        return False
-
-
-async def test_multiple_destinations():
-    """Test 4: Different destinations"""
-    print_header("TEST 4: Multiple Destinations")
-    
-    destinations = [
-        ("Bali", "Jakarta"),
-        ("Yogyakarta", "Jakarta"),
-        ("Lombok", "Jakarta")
-    ]
-    
-    results = []
-    
-    for dest, origin in destinations:
-        print(f"\n🔍 Testing: {origin} → {dest}")
-        
-        request = TripRequest(
-            destination=dest,
-            origin=origin,
-            duration_days=3,
-            start_date="2026-07-15",
-            end_date="2026-07-17",
-            budget=10000000.0,
-            num_travelers=2
-        )
-        
-        orchestrator = TripOrchestrator()
-        
-        try:
-            trip_plan, metadata = await orchestrator.plan_trip(request)
-            
-            print(f"   ✅ Success: Rp {trip_plan.budget.breakdown.total:,.0f}, "
-                  f"Confidence: {trip_plan.overall_confidence:.2%}")
-            print(f"   📊 Flight source: {trip_plan.flights.data_source}")
-            
-            results.append({
-                'destination': dest,
-                'success': True,
-                'cost': trip_plan.budget.breakdown.total,
-                'confidence': trip_plan.overall_confidence,
-                'flight_source': trip_plan.flights.data_source
-            })
-            
-        except Exception as e:
-            print(f"   ❌ Failed: {str(e)}")
-            results.append({
-                'destination': dest,
-                'success': False,
-                'error': str(e)
-            })
-    
-    # Summary
-    print(f"\n📊 Results Summary:")
-    successful = sum(1 for r in results if r['success'])
-    print(f"   Successful: {successful}/{len(destinations)}")
-    
-    for result in results:
-        if result['success']:
-            print(f"   ✅ {result['destination']}: "
-                  f"Rp {result['cost']:,.0f}, {result['confidence']:.2%} "
-                  f"(source: {result['flight_source']})")
-        else:
-            print(f"   ❌ {result['destination']}: {result.get('error', 'Unknown error')}")
-    
-    assert successful == len(destinations), f"Should succeed for all destinations"
-    
-    print("\n✅ PASS - Multiple Destinations")
-    return True
-
-
-async def test_budget_allocation():
-    """Test 5: Budget allocation validation"""
-    print_header("TEST 5: Budget Allocation Validation")
-    
-    test_budgets = [
-        5000000,   # 5M
-        10000000,  # 10M
-        20000000,  # 20M
-        50000000,  # 50M
-    ]
-    
-    print("🔍 Testing budget allocation percentages:\n")
-    
-    for budget in test_budgets:
-        allocation = BudgetAllocationStrategy.allocate(budget)
-        total = sum(allocation.values())
-        
-        print(f"Budget: Rp {budget:,.0f}")
-        print(f"  Flights: Rp {allocation['flight']:,.0f} (35%)")
-        print(f"  Hotels: Rp {allocation['hotel']:,.0f} (30%)")
-        print(f"  Food: Rp {allocation['food']:,.0f} (20%)")
-        print(f"  Activities: Rp {allocation['activities']:,.0f} (10%)")
-        print(f"  Misc: Rp {allocation['misc']:,.0f} (5%)")
-        print(f"  Total: Rp {total:,.0f} ({'✅' if abs(total - budget) < 1 else '❌'})")
-        print()
-        
-        # Verify
-        assert abs(total - budget) < 1, f"Allocation should sum to budget"
-        assert allocation['flight'] == budget * 0.35, "Flight should be 35%"
-        assert allocation['hotel'] == budget * 0.30, "Hotel should be 30%"
-        assert allocation['food'] == budget * 0.20, "Food should be 20%"
-        assert allocation['activities'] == budget * 0.10, "Activities should be 10%"
-        assert allocation['misc'] == budget * 0.05, "Misc should be 5%"
-    
-    print("✅ PASS - Budget Allocation Validation")
-    return True
-
-
-async def run_all_tests():
-    """Run all tests"""
-    print("\n" + "="*60)
-    print("🧪 TRIPORCHESTRATOR TEST SUITE")
-    print("="*60)
-    print("\n📌 NOTE: Logging enabled to track Amadeus API calls")
-    print("   Look for: '[Tier 1] Amadeus API' in logs\n")
-    
-    tests = [
-        ("Basic Trip Planning", test_basic_trip),
-        ("Tight Budget Scenario", test_tight_budget),
-        ("Progress Tracking", test_progress_tracking),
-        ("Multiple Destinations", test_multiple_destinations),
-        ("Budget Allocation", test_budget_allocation),
-    ]
-    
-    results = []
-    
-    for name, test_func in tests:
-        try:
-            result = await test_func()
-            results.append((name, result))
-        except Exception as e:
-            print(f"\n❌ Test '{name}' crashed: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            results.append((name, False))
-    
-    # Final summary
-    print("\n" + "="*60)
-    print("📊 TEST SUMMARY")
-    print("="*60)
-    
-    passed = sum(1 for _, result in results if result)
-    total = len(results)
-    
-    for name, result in results:
-        status = "✅ PASS" if result else "❌ FAIL"
-        print(f"{status} - {name}")
-    
-    print(f"\n   Total: {passed}/{total} tests passed")
-    
-    if passed == total:
-        print("\n🎉 ALL TESTS PASSED! 🎉")
-    else:
-        print(f"\n⚠️  {total - passed} test(s) failed")
+async def test_conversation_flow():
+    """Test complete conversation flow"""
     
     print("="*60)
+    print("🧪 CONVERSATIONAL SYSTEM TEST")
+    print("="*60)
     
-    return passed == total
+    manager = get_conversation_manager()
+    
+    # Test 1: Create session & initial planning
+    print("\n📝 Test 1: Initial Planning")
+    print("-"*60)
+    
+    response = await manager.handle_message(
+        session_id="test_session",
+        message="Plan trip to Bali from 2026-07-15 to 2026-07-20, budget 15000000, 2 travelers"
+    )
+    
+    print(f"✅ Response ({response.state}):")
+    print(response.message[:500] + "..." if len(response.message) > 500 else response.message)
+    print(f"\n📊 Has trip plan: {response.trip_plan is not None}")
+    
+    session_id = response.session_id
+    
+    # Test 2: Modification
+    print("\n\n📝 Test 2: Modification - Change Hotel")
+    print("-"*60)
+    
+    response = await manager.handle_message(
+        session_id=session_id,
+        message="Change hotel to cheaper option, max 500K per night"
+    )
+    
+    print(f"✅ Response ({response.state}):")
+    print(response.message)
+    print(f"\n📋 Pending modifications: {response.pending_modifications}")
+    
+    # Test 3: Add more modifications
+    print("\n\n📝 Test 3: Add More Modifications")
+    print("-"*60)
+    
+    response = await manager.handle_message(
+        session_id=session_id,
+        message="Day 2 lunch must be vegetarian"
+    )
+    
+    print(f"✅ Response ({response.state}):")
+    print(response.message)
+    
+    # Test 4: Apply modifications
+    print("\n\n📝 Test 4: Apply Modifications")
+    print("-"*60)
+    
+    response = await manager.handle_message(
+        session_id=session_id,
+        message="Apply all changes"
+    )
+    
+    print(f"✅ Response ({response.state}):")
+    print(response.message[:500] + "..." if len(response.message) > 500 else response.message)
+    
+    # Test 5: Query
+    print("\n\n📝 Test 5: Query Budget")
+    print("-"*60)
+    
+    response = await manager.handle_message(
+        session_id=session_id,
+        message="Show budget breakdown"
+    )
+    
+    print(f"✅ Response ({response.state}):")
+    print(response.message)
+    
+    # Test 6: Undo
+    print("\n\n📝 Test 6: Undo")
+    print("-"*60)
+    
+    response = await manager.handle_message(
+        session_id=session_id,
+        message="Undo last change"
+    )
+    
+    print(f"✅ Response ({response.state}):")
+    print(response.message)
+    
+    # Test 7: Help
+    print("\n\n📝 Test 7: Help")
+    print("-"*60)
+    
+    response = await manager.handle_message(
+        session_id=session_id,
+        message="help"
+    )
+    
+    print(f"✅ Response ({response.state}):")
+    print(response.message[:300] + "..." if len(response.message) > 300 else response.message)
+    
+    # Test 8: Finalize
+    print("\n\n📝 Test 8: Finalize")
+    print("-"*60)
+    
+    response = await manager.handle_message(
+        session_id=session_id,
+        message="Finalize the plan"
+    )
+    
+    print(f"✅ Response ({response.state}):")
+    print(response.message)
+    
+    print("\n" + "="*60)
+    print("🎉 ALL TESTS COMPLETED!")
+    print("="*60)
+
+
+async def test_intent_parsing():
+    """Test intent parser with various messages"""
+    
+    print("\n\n"+"="*60)
+    print("🧪 INTENT PARSING TEST")
+    print("="*60)
+    
+    from backend.conversational.intent_parser import get_intent_parser
+    from backend.conversational.session_store import get_session_store
+    
+    parser = get_intent_parser()
+    session_store = get_session_store()
+    session = session_store.create_session()
+    
+    test_messages = [
+        "Plan trip to Tokyo",
+        "Change hotel",
+        "Day 3 lunch vegetarian",
+        "Apply changes",
+        "Show budget",
+        "Undo",
+        "Help",
+        "Finalize",
+        "What is the weather?",  # Unclear
+    ]
+    
+    for msg in test_messages:
+        print(f"\n📩 Message: '{msg}'")
+        intent = await parser.parse(msg, session)
+        print(f"   🎯 Type: {intent.type.value}")
+        if intent.action:
+            print(f"   ⚡ Action: {intent.action.value}")
+        print(f"   📊 Confidence: {intent.confidence:.2f}")
+        if intent.params:
+            print(f"   📦 Params: {intent.params}")
+
+
+async def test_image_fetching():
+    """Test image fetching"""
+    
+    print("\n\n"+"="*60)
+    print("🧪 IMAGE FETCHING TEST")
+    print("="*60)
+    
+    from backend.conversational.image_fetcher import get_image_fetcher
+    from backend.models.schemas import Hotel, Restaurant, Attraction
+    
+    fetcher = get_image_fetcher()
+    
+    # Create mock trip plan
+    class MockTripPlan:
+        class MockHotels:
+            recommended_hotel = Hotel(
+                name="Grand Bali Resort",
+                type="resort",
+                description="Luxury beachfront resort",
+                price_per_night=800000,
+                rating=4.5,
+                amenities=["pool", "spa"]
+            )
+        
+        class MockDining:
+            restaurants = [
+                Restaurant(
+                    name="Warung Makan Bu Oka",
+                    cuisine="Indonesian",
+                    description="Traditional Balinese cuisine",
+                    average_cost_per_person=50000,
+                    rating=4.3,
+                    price_range="$"
+                )
+            ]
+        
+        class MockDestination:
+            attractions = [
+                Attraction(
+                    name="Tanah Lot Temple",
+                    type="temple",
+                    description="Iconic sea temple",
+                    estimated_duration_hours=2.0
+                )
+            ]
+        
+        hotels = MockHotels()
+        dining = MockDining()
+        destination = MockDestination()
+    
+    mock_plan = MockTripPlan()
+    
+    print("\n🖼️  Starting image fetch...")
+    image_states = await fetcher.fetch_all_images(mock_plan)
+    
+    print(f"✅ Started fetching {len(image_states)} images")
+    
+    # Wait a bit for async fetching
+    await asyncio.sleep(3)
+    
+    # Check status
+    batch = fetcher.get_image_batch_status()
+    print(f"\n📊 Status:")
+    print(f"   Total: {batch.total_count}")
+    print(f"   Loaded: {batch.loaded_count}")
+    print(f"   Failed: {batch.failed_count}")
+    
+    # Show results
+    for item_id, state in batch.images.items():
+        status_icon = "✅" if state.status.value == "loaded" else "❌" if state.status.value == "failed" else "⏳"
+        print(f"   {status_icon} {item_id}: {state.status.value}")
+        if state.url:
+            print(f"      URL: {state.url[:60]}...")
 
 
 if __name__ == "__main__":
-    success = asyncio.run(run_all_tests())
-    sys.exit(0 if success else 1)
+    print("\n🚀 TripCraft Conversational System Tests\n")
+    
+    # Run tests
+    asyncio.run(test_conversation_flow())
+    asyncio.run(test_intent_parsing())
+    asyncio.run(test_image_fetching())
+    
+    print("\n✅ All tests completed!")

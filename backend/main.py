@@ -1,5 +1,6 @@
 """
-TripCraft Lite - Main FastAPI Application
+TripCraft Lite - Main FastAPI Application  
+UPDATED: Added Conversation Router
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,8 +13,8 @@ load_dotenv()
 # Create FastAPI app
 app = FastAPI(
     title="TripCraft Lite API",
-    description="Agentic Travel Planner with Multi-Agent RAG System",
-    version="1.0.0",
+    description="Agentic Travel Planner with Multi-Agent RAG System + Conversational Interface",
+    version="2.0.0",
     debug=os.getenv("DEBUG", "true").lower() == "true"
 )
 
@@ -30,9 +31,10 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup"""
-from backend.models.database import init_db
+    from backend.models.database import init_db
     init_db()
     print("✅ TripCraft Lite API started successfully!")
+    print("📍 Conversational interface enabled at /api/conversation/chat")
 
 
 @app.get("/")
@@ -40,8 +42,13 @@ async def root():
     """Root endpoint"""
     return {
         "message": "TripCraft Lite API",
-        "version": "1.0.0",
-        "status": "running"
+        "version": "2.0.0",
+        "status": "running",
+        "features": {
+            "trip_planning": "enabled",
+            "conversational_interface": "enabled",
+            "image_fetching": "enabled"
+        }
     }
 
 
@@ -52,20 +59,21 @@ async def health_check():
     
     # Check if essential env vars are set
     gemini_key = os.getenv("GEMINI_API_KEY")
+    unsplash_key = os.getenv("UNSPLASH_ACCESS_KEY")
     
     return {
         "status": "healthy",
         "database": "connected",
         "gemini_api": "configured" if gemini_key else "missing",
+        "unsplash_api": "configured" if unsplash_key else "missing",
         "opentripmap_api": "configured" if os.getenv("OPENTRIPMAP_API_KEY") else "optional",
-        "unsplash_api": "configured" if os.getenv("UNSPLASH_ACCESS_KEY") else "optional"
+        "conversational_system": "active"
     }
 
 
-# Import routers (we'll create these in next steps)
-# from routers import trip, debug
-# app.include_router(trip.router, prefix="/trip", tags=["trips"])
-# app.include_router(debug.router, prefix="/debug", tags=["debug"])
+# Import routers
+from backend.routers import conversation
+app.include_router(conversation.router, prefix="/api/conversation", tags=["conversation"])
 
 
 if __name__ == "__main__":
