@@ -30,7 +30,7 @@ class HotelAgent(BaseAgent):
             api_key = os.getenv("GEMINI_API_KEY")
             if api_key:
                 genai.configure(api_key=api_key)
-                self.model = genai.GenerativeModel("gemini-2.0-flash")
+                self.model = genai.GenerativeModel("gemini-2.5-flash")
                 self.llm_available = True
             else:
                 self.llm_available = False

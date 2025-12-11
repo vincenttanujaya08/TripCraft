@@ -33,7 +33,7 @@ class DestinationAgent(BaseAgent):
                 raise ValueError("GEMINI_API_KEY not found in environment")
             
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel("gemini-2.0-flash")
+            self.model = genai.GenerativeModel("gemini-2.5-flash")
             self.llm_available = True
         except Exception as e:
             print(f"⚠️  Gemini not available: {e}")

@@ -37,7 +37,7 @@ class DiningAgent(BaseAgent):
             gemini_key = os.getenv("GEMINI_API_KEY")
             if gemini_key:
                 genai.configure(api_key=gemini_key)
-                self.llm_model = genai.GenerativeModel("gemini-2.0-flash")
+                self.llm_model = genai.GenerativeModel("gemini-2.5-flash")
                 self.llm_enabled = True
                 logger.info("✅ LLM fallback enabled for restaurant generation")
         except Exception as e:
