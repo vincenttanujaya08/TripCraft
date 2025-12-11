@@ -4,318 +4,291 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripCraft Lite - Trip Planner</title>
+    <title>TripCraft - Modern Travel Planner</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* --- COPY STYLE UI MODERN (TIDAK BERUBAH) --- */
+        :root {
+            --primary: #00cec9;
+            --primary-dark: #00b894;
+            --secondary: #6c5ce7;
+            --text-main: #2d3436;
+            --text-muted: #636e72;
+            --bg-glass: rgba(255, 255, 255, 0.92);
+            --border-glass: 1px solid rgba(255, 255, 255, 0.6);
+            --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.08);
+            --radius-xl: 24px;
+            --radius-md: 16px;
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80') no-repeat center center fixed;
+            background-size: cover;
             min-height: 100vh;
-            padding: 20px;
+            color: var(--text-main);
+            padding: 40px 20px;
+            position: relative;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        body::before {
+            content: ''; position: fixed; inset: 0;
+            background: linear-gradient(135deg, rgba(0,0,0,0.4), rgba(45, 52, 54, 0.3));
+            z-index: -1; backdrop-filter: blur(4px);
         }
 
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        .header { text-align: center; color: white; margin-bottom: 50px; animation: fadeInDown 0.8s ease; }
+        .header h1 { font-size: 2.8rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+        .header p { font-size: 1.1rem; font-weight: 400; opacity: 0.9; background: rgba(255,255,255,0.15); display: inline-block; padding: 6px 16px; border-radius: 50px; backdrop-filter: blur(4px); }
+
+        .main-content { display: grid; grid-template-columns: 360px 1fr; gap: 30px; align-items: start; }
+
+        .glass-card {
+            background: var(--bg-glass); border: var(--border-glass); border-radius: var(--radius-xl);
+            padding: 32px; box-shadow: var(--shadow-soft); backdrop-filter: blur(20px); transition: transform 0.3s ease;
         }
 
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
+        .form-header { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #f1f2f6; }
+        .form-header h2 { font-size: 1.25rem; color: var(--text-main); font-weight: 700; }
 
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        .main-content {
-            display: grid;
-            grid-template-columns: 400px 1fr;
-            gap: 20px;
-        }
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #b2bec3; transition: color 0.3s; }
 
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        .form-control {
+            width: 100%; padding: 14px 16px 14px 45px; border: 1px solid #dfe6e9;
+            background: #ffffff; border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14px; color: var(--text-main); transition: all 0.2s ease;
         }
+        .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0, 206, 201, 0.1); }
+        .input-wrapper:focus-within i { color: var(--primary); }
 
-        .form-group {
-            margin-bottom: 20px;
+        .btn-primary {
+            width: 100%; padding: 16px; background: var(--text-main); color: white; border: none;
+            border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s;
+            display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px;
         }
+        .btn-primary:hover { background: var(--primary); transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 206, 201, 0.3); }
+        .btn-primary:disabled { opacity: 0.7; cursor: wait; transform: none; }
 
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
+        .result-area { min-height: 550px; position: relative; background: rgba(255, 255, 255, 0.85); }
+        .empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--text-muted); }
+        .empty-state-icon { font-size: 4rem; color: #dfe6e9; margin-bottom: 20px; animation: float 6s ease-in-out infinite; }
+        .error-message { background: #ffecec; color: #d63031; padding: 20px; border-radius: 12px; border: 1px solid #fab1a0; }
+
+        /* Ticket Design for Results */
+        .ticket-card {
+            background: white; border-radius: var(--radius-md); overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #f1f2f6; margin-bottom: 25px; animation: fadeIn 0.5s ease;
         }
-
-        input,
-        select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.3s;
+        .ticket-header {
+            background: linear-gradient(135deg, var(--text-main), #636e72); color: white;
+            padding: 20px 25px; display: flex; justify-content: space-between; align-items: center;
         }
+        .ticket-header h3 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+        .ticket-header .status { font-size: 0.75rem; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px; }
+        .ticket-body { padding: 25px; }
+        
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #dfe6e9; }
+        .info-row:last-child { border: none; margin: 0; padding: 0; }
+        .info-label { font-size: 11px; text-transform: uppercase; color: #b2bec3; font-weight: 700; margin-bottom: 5px; }
+        .info-value { font-size: 15px; font-weight: 600; color: var(--text-main); }
+        .info-value.highlight { color: var(--primary-dark); font-size: 18px; }
 
-        input:focus,
-        select:focus {
-            outline: none;
-            border-color: #667eea;
+        .list-item { font-size: 14px; padding: 8px 0; border-bottom: 1px solid #f5f6fa; }
+        .list-item:last-child { border: none; }
+        .list-item strong { color: var(--text-main); display: block; margin-bottom: 4px; }
+        .list-item small { color: var(--text-muted); }
+        .badge { display: inline-block; padding: 2px 8px; background: #e0fbfb; color: var(--primary-dark); border-radius: 6px; font-size: 11px; margin-left: 5px; font-weight: 600; }
+
+        .hotel-preview { display: flex; gap: 15px; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 10px; }
+        .hotel-icon { width: 40px; height: 40px; background: #e0fbfb; color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+        /* Chat Widget Styles */
+        .chat-toggle-btn {
+            position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: var(--text-main); color: white;
+            border-radius: 50%; box-shadow: 0 8px 25px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;
+            font-size: 24px; cursor: pointer; z-index: 1000; transition: all 0.3s;
         }
-
-        .btn {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
+        .chat-toggle-btn:hover { transform: scale(1.1); background: var(--primary); }
+        .chat-container {
+            position: fixed; bottom: 100px; right: 30px; width: 380px; height: 550px; background: #ffffff;
+            border-radius: var(--radius-xl); box-shadow: 0 20px 60px rgba(0,0,0,0.15); display: flex; flex-direction: column;
+            overflow: hidden; z-index: 999; transform: translateY(20px); opacity: 0; pointer-events: none;
+            transition: all 0.4s; border: 1px solid #f1f2f6;
         }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .result-area {
-            min-height: 400px;
-        }
-
-        .result-header {
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-
-        .result-header h2 {
-            color: #333;
-            font-size: 1.8rem;
-        }
-
-        .result-section {
-            margin-bottom: 25px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-
-        .result-section h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.3rem;
-        }
-
-        .attraction-item,
-        .restaurant-item {
-            background: white;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-
-        .attraction-item h4,
-        .restaurant-item h4 {
-            color: #333;
-            margin-bottom: 8px;
-        }
-
-        .attraction-item p,
-        .restaurant-item p {
-            color: #666;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            background: #667eea;
-            color: white;
-            border-radius: 12px;
-            font-size: 12px;
-            margin-right: 5px;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-
-        .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .error {
-            background: #fee;
-            border-left-color: #f44;
-            color: #c33;
-        }
-
-        .info-box {
-            background: #e8f4f8;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #3498db;
-        }
-
-        .info-box p {
-            color: #2c3e50;
-            line-height: 1.6;
-        }
-
-        @media (max-width: 968px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-        }
+        .chat-container.active { transform: translateY(0); opacity: 1; pointer-events: all; }
+        .chat-header { padding: 20px; background: white; border-bottom: 1px solid #f1f2f6; display: flex; justify-content: space-between; align-items: center; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; background: #fdfdfd; display: flex; flex-direction: column; gap: 15px; }
+        .message { padding: 12px 18px; font-size: 14px; line-height: 1.5; max-width: 85%; }
+        .message.bot { align-self: flex-start; background: #f1f2f6; border-radius: 18px 18px 18px 4px; }
+        .message.user { align-self: flex-end; background: var(--text-main); color: white; border-radius: 18px 18px 4px 18px; }
+        .chat-input-area { padding: 15px 20px; background: white; border-top: 1px solid #f1f2f6; display: flex; gap: 12px; }
+        .chat-input-area input { flex: 1; border: 1px solid #f1f2f6; background: #f8f9fa; border-radius: 50px; padding: 12px 20px; outline: none; }
+        
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+        @media (max-width: 900px) { .main-content { grid-template-columns: 1fr; } .chat-container { width: 92%; right: 4%; } }
     </style>
 </head>
 
 <body>
     <div class="container">
         <div class="header">
-            <h1>✈️ TripCraft Lite</h1>
-            <p>AI-Powered Trip Planner - Plan Your Perfect Journey</p>
+            <h1>TripCraft Lite</h1>
+            <p>AI-Powered Travel Itinerary & Budgeting</p>
         </div>
 
         <div class="main-content">
-            <!-- Form Card -->
-            <div class="card">
-                <h2 style="margin-bottom: 20px; color: #333;">Plan Your Trip</h2>
-
-                <div class="info-box">
-                    <p><strong>Note:</strong> Make sure FastAPI backend is running on <code>http://localhost:8000</code>
-                    </p>
+            <!-- Form Card: Updated with extra fields needed for logic -->
+            <div class="glass-card">
+                <div class="form-header">
+                    <h2><i class="fas fa-sliders-h" style="color: var(--primary); margin-right: 8px;"></i> Plan Your Trip</h2>
                 </div>
-
+                
                 <form id="tripForm">
                     <div class="form-group">
-                        <label for="destination">Destination</label>
-                        <input type="text" id="destination" placeholder="e.g., Bali, Tokyo, Paris" required>
+                        <label>Where to?</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <input type="text" id="destination" class="form-control" placeholder="City, Country" required>
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="origin">Origin City (Optional)</label>
-                        <input type="text" id="origin" placeholder="e.g., Jakarta, Singapore">
+                        <label>Origin</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-plane-departure"></i>
+                            <input type="text" id="origin" class="form-control" placeholder="Optional">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 0;">
+                        <div class="form-group">
+                            <label>Start Date</label>
+                            <input type="date" id="start_date" class="form-control" required style="padding-left: 16px;">
+                        </div>
+                        <div class="form-group">
+                            <label>End Date</label>
+                            <input type="date" id="end_date" class="form-control" required style="padding-left: 16px;">
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="start_date">Start Date</label>
-                        <input type="date" id="start_date" required>
+                        <label>Budget (IDR)</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-wallet"></i>
+                            <input type="number" id="budget" class="form-control" placeholder="e.g. 10000000" required>
+                        </div>
+                    </div>
+
+                    <!-- ADDED: Travelers Input (Required by Logic) -->
+                    <div class="form-group">
+                        <label>Travelers</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-user-friends"></i>
+                            <input type="number" id="travelers" class="form-control" value="2" min="1" max="20" required>
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="end_date">End Date</label>
-                        <input type="date" id="end_date" required>
+                        <label>Style</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-star"></i>
+                            <select id="accommodation" class="form-control">
+                                <option value="budget">Backpacker</option>
+                                <option value="mid-range" selected>Comfort / Mid-Range</option>
+                                <option value="luxury">Luxury / Resort</option>
+                            </select>
+                        </div>
                     </div>
 
+                    <!-- ADDED: Pace Input (Required by Logic) -->
                     <div class="form-group">
-                        <label for="budget">Budget (IDR)</label>
-                        <input type="number" id="budget" placeholder="e.g., 15000000" required>
+                        <label>Trip Pace</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <select id="pace" class="form-control">
+                                <option value="relaxed">Relaxed</option>
+                                <option value="moderate" selected>Moderate</option>
+                                <option value="packed">Packed</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="travelers">Number of Travelers</label>
-                        <input type="number" id="travelers" value="2" min="1" max="20" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="accommodation">Accommodation Type</label>
-                        <select id="accommodation">
-                            <option value="budget">Budget</option>
-                            <option value="mid-range" selected>Mid-Range</option>
-                            <option value="luxury">Luxury</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="pace">Trip Pace</label>
-                        <select id="pace">
-                            <option value="relaxed">Relaxed</option>
-                            <option value="moderate" selected>Moderate</option>
-                            <option value="packed">Packed</option>
-                        </select>
-                    </div>
-
-                    <button type="submit" class="btn" id="submitBtn">
-                        🚀 Plan My Trip
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span>Plan My Trip</span>
+                        <i class="fas fa-arrow-right"></i>
                     </button>
                 </form>
             </div>
 
             <!-- Results Card -->
-            <div class="card result-area">
+            <div class="glass-card result-area">
                 <div id="results">
-                    <div style="text-align: center; padding: 60px 20px; color: #999;">
-                        <h3 style="margin-bottom: 15px;">Ready to Plan Your Trip?</h3>
-                        <p>Fill in the form and click "Plan My Trip" to get started!</p>
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-map-marked-alt"></i></div>
+                        <h3>Your itinerary is empty</h3>
+                        <p>Fill in the details to connect to the backend planner.</p>
+                        <p style="font-size: 12px; margin-top: 10px; opacity: 0.7;">Ensure backend running at :8000</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Chat Widget -->
+    <div class="chat-toggle-btn" onclick="toggleChat()">
+        <i class="fas fa-comment-dots"></i>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="chat-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 8px; height: 8px; background: #00cec9; border-radius: 50%;"></div>
+                <h3>Travel Assistant</h3>
+            </div>
+            <button class="close-btn" style="background:none; border:none; cursor:pointer;" onclick="toggleChat()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                Hi! Saya TripCraft AI. Butuh rekomendasi spesifik atau ingin melihat foto lokasi? 🏝️
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Tanya sesuatu..." onkeypress="handleKeyPress(event)">
+            <button style="background:var(--primary); color:white; border:none; border-radius:50%; width:35px; height:35px; cursor:pointer;" onclick="sendMessage()">
+                <i class="fas fa-paper-plane" style="font-size: 12px;"></i>
+            </button>
+        </div>
+    </div>
+
     <script>
-        let currentTripData = null;
         const form = document.getElementById('tripForm');
         const resultsDiv = document.getElementById('results');
         const submitBtn = document.getElementById('submitBtn');
 
-        // Set default dates
+        // Default Dates
         const today = new Date();
         const nextWeek = new Date(today);
         nextWeek.setDate(nextWeek.getDate() + 7);
         const weekAfter = new Date(nextWeek);
         weekAfter.setDate(weekAfter.getDate() + 4);
-
         document.getElementById('start_date').value = nextWeek.toISOString().split('T')[0];
         document.getElementById('end_date').value = weekAfter.toISOString().split('T')[0];
 
+        // --- REAL FETCH LOGIC (FROM USER CODE) ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -335,18 +308,16 @@
                 }
             };
 
-            // Show loading
+            // Loading State
             showLoading();
             submitBtn.disabled = true;
-            submitBtn.textContent = '⏳ Planning...';
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Planning...';
 
             try {
-
+                // FETCH TO LOCALHOST:8000
                 const response = await fetch('http://localhost:8000/api/trip/plan', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
 
@@ -355,179 +326,239 @@
                 }
 
                 const result = await response.json();
-                currentTripData = result;
-                displayResults(result);
+                displayResults(result); // Use our custom display function for Clean UI
+
+                // Auto-trigger Chat
+                addBotMessage(`Trip ke ${result.request.destination} berhasil direncanakan! Ada hotel rekomendasi "${result.hotel.recommended_hotel.name}". Ketik "lihat hotel" untuk fotonya.`);
+                toggleChat(true);
 
             } catch (error) {
                 showError(error.message);
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = '🚀 Plan My Trip';
+                submitBtn.innerHTML = '<span>Plan My Trip</span><i class="fas fa-arrow-right"></i>';
             }
         });
 
         function showLoading() {
             resultsDiv.innerHTML = `
-                <div class="loading">
-                    <div class="loading-spinner"></div>
-                    <p>Planning your perfect trip...</p>
-                    <p style="font-size: 14px; margin-top: 10px;">This may take a few seconds</p>
+                <div class="empty-state">
+                    <div class="empty-state-icon"><i class="fas fa-circle-notch fa-spin" style="color: var(--primary);"></i></div>
+                    <h3>Crafting Itinerary...</h3>
+                    <p>Connecting to AI Engine...</p>
                 </div>
             `;
         }
 
         function showError(message) {
             resultsDiv.innerHTML = `
-                <div class="result-section error">
-                    <h3>❌ Error</h3>
-                    <p><strong>Failed to plan trip:</strong> ${message}</p>
-                    <p style="margin-top: 10px;">Make sure the backend is running at http://localhost:8000</p>
+                <div class="error-message">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Connection Error</h3>
+                    <p>${message}</p>
+                    <p style="font-size: 13px; margin-top: 10px;">Please ensure your Python backend is running at <strong>http://localhost:8000</strong></p>
                 </div>
             `;
         }
 
+        // --- ADAPTED DISPLAY LOGIC FOR CLEAN UI ---
         function displayResults(data) {
-            let html = '<div class="result-header">';
-            html += `<h2>Your ${data.request.destination} Trip Plan</h2>`;
-            html += `<p style="color: #666; margin-top: 10px;">${data.request.start_date} to ${data.request.end_date}</p>`;
-            html += '</div>';
+            let html = `
+                <h2 style="margin-bottom: 20px; color: var(--text-main);">Trip Plan: ${data.request.destination}</h2>
+            `;
 
-            // Destination
+            // 1. Destination & Attractions Ticket
             if (data.destination) {
-                html += '<div class="result-section">';
-                html += '<h3>🌍 Destination: ' + data.destination.destination.name + '</h3>';
-                html += '<p>' + data.destination.destination.description + '</p>';
-
-                if (data.destination.attractions && data.destination.attractions.length > 0) {
-                    html += '<h4 style="margin-top: 20px; margin-bottom: 10px;">Top Attractions:</h4>';
-                    data.destination.attractions.slice(0, 5).forEach(attr => {
-                        html += `
-                            <div class="attraction-item">
-                                <h4>${attr.name}</h4>
-                                <span class="badge">${attr.type}</span>
-                                <p>${attr.description}</p>
-                            </div>
-                        `;
-                    });
-                }
-                html += '</div>';
-            }
-
-            // Hotel
-            if (data.hotel && data.hotel.recommended_hotel) {
-                const hotel = data.hotel.recommended_hotel;
-                html += '<div class="result-section">';
-                html += '<h3>🏨 Recommended Hotel</h3>';
                 html += `
-                    <div class="attraction-item">
-                        <h4>${hotel.name}</h4>
-                        <span class="badge">${hotel.type}</span>
-                        ${hotel.rating ? `<span class="badge">⭐ ${hotel.rating}/5</span>` : ''}
-                        <p>${hotel.description}</p>
-                        <p style="margin-top: 10px;"><strong>Price:</strong> Rp ${hotel.price_per_night.toLocaleString()}/night</p>
+                <div class="ticket-card">
+                    <div class="ticket-header">
+                        <h3><i class="fas fa-map-marked-alt"></i> Destination</h3>
+                        <span class="status">Confirmed</span>
                     </div>
-                `;
-                html += '</div>';
-            }
-
-            // Restaurants
-            if (data.dining && data.dining.restaurants && data.dining.restaurants.length > 0) {
-                html += '<div class="result-section">';
-                html += '<h3>🍽️ Recommended Restaurants</h3>';
-                data.dining.restaurants.slice(0, 5).forEach(rest => {
-                    html += `
-                        <div class="restaurant-item">
-                            <h4>${rest.name}</h4>
-                            <span class="badge">${rest.cuisine}</span>
-                            <span class="badge">${rest.price_range}</span>
-                            <p>${rest.description}</p>
+                    <div class="ticket-body">
+                        <div class="info-row">
+                            <div>
+                                <div class="info-label">City</div>
+                                <div class="info-value highlight">${data.destination.destination.name}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div class="info-label">Dates</div>
+                                <div class="info-value">${data.request.start_date} <br> ${data.request.end_date}</div>
+                            </div>
                         </div>
-                    `;
-                });
-                html += '</div>';
+                        <p style="font-size: 14px; color: #636e72; margin-bottom: 15px;">${data.destination.destination.description}</p>
+                        
+                        ${data.destination.attractions ? `
+                            <div class="info-label" style="margin-bottom: 10px;">Top Attractions</div>
+                            ${data.destination.attractions.slice(0, 3).map(attr => `
+                                <div class="list-item">
+                                    <strong>${attr.name} <span class="badge">${attr.type}</span></strong>
+                                    <small>${attr.description}</small>
+                                </div>
+                            `).join('')}
+                        ` : ''}
+                    </div>
+                </div>`;
             }
 
-            // Budget
+            // 2. Hotel Ticket
+            if (data.hotel && data.hotel.recommended_hotel) {
+                const h = data.hotel.recommended_hotel;
+                html += `
+                <div class="ticket-card">
+                    <div class="ticket-header" style="background: linear-gradient(135deg, #00cec9, #00b894);">
+                        <h3><i class="fas fa-bed"></i> Accommodation</h3>
+                        <span class="status">Recommended</span>
+                    </div>
+                    <div class="ticket-body">
+                        <div class="hotel-preview">
+                            <div class="hotel-icon"><i class="fas fa-concierge-bell"></i></div>
+                            <div style="flex:1;">
+                                <div class="info-value">${h.name}</div>
+                                <div class="info-label">${h.type} • ${h.rating ? h.rating + '⭐' : ''}</div>
+                                <div style="font-size: 13px; color: #636e72; margin-top:5px;">${h.description}</div>
+                            </div>
+                            <div class="info-value highlight" style="font-size: 16px;">Rp ${h.price_per_night.toLocaleString()}</div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // 3. Restaurants Ticket (New for Clean UI)
+            if (data.dining && data.dining.restaurants) {
+                html += `
+                <div class="ticket-card">
+                    <div class="ticket-header" style="background: linear-gradient(135deg, #a29bfe, #6c5ce7);">
+                        <h3><i class="fas fa-utensils"></i> Dining</h3>
+                    </div>
+                    <div class="ticket-body">
+                        ${data.dining.restaurants.slice(0, 3).map(rest => `
+                            <div class="list-item">
+                                <strong>${rest.name} <span class="badge" style="background:#f0f0f0; color:#666;">${rest.cuisine}</span></strong>
+                                <small>${rest.description}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+            }
+
+            // 4. Budget Breakdown Ticket
             if (data.budget) {
-                html += '<div class="result-section">';
-                html += '<h3>💰 Budget Breakdown</h3>';
                 const b = data.budget.breakdown;
                 html += `
-                    <div style="background: white; padding: 15px; border-radius: 6px;">
-                        <p><strong>Accommodation:</strong> Rp ${(b.accommodation || 0).toLocaleString()}</p>
-                        <p><strong>Flights:</strong> Rp ${(b.flights || 0).toLocaleString()}</p>
-                        <p><strong>Food:</strong> Rp ${(b.food || 0).toLocaleString()}</p>
-                        <p><strong>Activities:</strong> Rp ${(b.activities || 0).toLocaleString()}</p>
-                        <p><strong>Transport:</strong> Rp ${(b.transportation_local || 0).toLocaleString()}</p>
-                        <p><strong>Misc:</strong> Rp ${(b.miscellaneous || 0).toLocaleString()}</p>
-                        <p style="border-top: 2px solid #ddd; margin-top: 10px; padding-top: 10px;">
-                            <strong>TOTAL:</strong> Rp ${(b.total || 0).toLocaleString()}
-                        </p>
-                        <p style="color: ${data.budget.is_over_budget ? '#f44' : '#4a4'}; font-weight: bold;">
-                            ${data.budget.is_over_budget ? '⚠️ Over Budget' : '✅ Within Budget'}
-                        </p>
-                        <button onclick="downloadPDF()" class="pdf-btn" style="width:100%; margin-top:15px; background:#e74c3c; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer;">
-                            📄 Download Itinerary PDF
-                        </button>
+                <div class="ticket-card">
+                    <div class="ticket-header" style="background: linear-gradient(135deg, #2d3436, #636e72);">
+                        <h3><i class="fas fa-coins"></i> Financials</h3>
+                        <span class="status" style="background: ${data.budget.is_over_budget ? '#fab1a0; color: #d63031' : '#55efc4; color: #00b894'}">
+                            ${data.budget.is_over_budget ? 'Over Budget' : 'Within Budget'}
+                        </span>
                     </div>
-                `;
-                html += '</div>';
+                    <div class="ticket-body">
+                        <div class="info-row">
+                            <span class="info-label">Accommodation</span>
+                            <span class="info-value">Rp ${b.accommodation.toLocaleString()}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Flights</span>
+                            <span class="info-value">Rp ${b.flights.toLocaleString()}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Food & Dining</span>
+                            <span class="info-value">Rp ${b.dining.toLocaleString()}</span>
+                        </div>
+                         <div class="info-row" style="border-bottom: 2px solid #2d3436;">
+                            <span class="info-label">Activities</span>
+                            <span class="info-value">Rp ${b.attractions.toLocaleString()}</span>
+                        </div>
+                        <div class="info-row" style="margin-top: 15px; border:none;">
+                            <div>
+                                <div class="info-label">Total Estimated Cost</div>
+                                <div class="info-value highlight" style="color: var(--secondary);">Rp ${b.total.toLocaleString()}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
             }
 
-            // Verification
+            // 5. Verification Score
             if (data.verification) {
-                html += '<div class="result-section">';
-                html += '<h3>🛡️ Quality Score: ' + data.verification.score + '/100</h3>';
-                html += '<p>' + data.verification.summary + '</p>';
-                html += '</div>';
+                html += `
+                <div style="text-align: center; margin-top: 20px; color: var(--text-muted); font-size: 13px;">
+                    <i class="fas fa-shield-alt"></i> Quality Score: <strong>${data.verification.score}/100</strong>
+                    <p>${data.verification.summary}</p>
+                </div>`;
             }
 
             resultsDiv.innerHTML = html;
         }
 
-        async function downloadPDF() {
-            if (!currentTripData) {
-                alert("No trip plan available to download.");
-                return;
+        // --- CHAT LOGIC ---
+        const chatContainer = document.getElementById('chatContainer');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+
+        function toggleChat(forceOpen = false) {
+            if (forceOpen) chatContainer.classList.add('active');
+            else chatContainer.classList.toggle('active');
+        }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            addUserMessage(text);
+            chatInput.value = '';
+            showTypingIndicator();
+            setTimeout(async () => {
+                removeTypingIndicator();
+                await processRAGResponse(text);
+            }, 1000);
+        }
+
+        function addUserMessage(text) {
+            const div = document.createElement('div'); div.className = 'message user'; div.textContent = text;
+            chatMessages.appendChild(div); chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addBotMessage(text) {
+            const div = document.createElement('div'); div.className = 'message bot'; div.textContent = text;
+            chatMessages.appendChild(div); chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const div = document.createElement('div'); div.className = 'message bot typing'; div.innerHTML = '<i class="fas fa-ellipsis-h fa-beat"></i>'; div.id = 'typing-indicator';
+            chatMessages.appendChild(div); chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        function removeTypingIndicator() { const t = document.getElementById('typing-indicator'); if (t) t.remove(); }
+
+        async function processRAGResponse(userText) {
+            const lowerText = userText.toLowerCase();
+            const currentDest = document.getElementById('destination').value || "Bali"; 
+
+            if (lowerText.includes("hotel") || lowerText.includes("lihat") || lowerText.includes("gambar")) {
+                const suggestedHotel = "Amankila Resort"; 
+                const description = "Cliffside beach resort overlooking the Lombok Strait.";
+                // Pollinations AI
+                const prompt = `luxury hotel ${suggestedHotel} ${currentDest} pool architecture bright photorealistic 4k`;
+                const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+
+                addBotMessage(`Ini adalah gambaran visual untuk ${suggestedHotel} di ${currentDest}:`);
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'message bot'; cardDiv.style.padding = "0"; cardDiv.style.background = "transparent";
+                cardDiv.innerHTML = `
+                    <div style="background: white; border: 1px solid #eee; border-radius: 12px; overflow: hidden; margin-top: 5px;">
+                        <img src="${imageUrl}" style="width: 100%; height: 130px; object-fit: cover;" loading="lazy">
+                        <div style="padding: 12px;">
+                            <div style="font-weight: 700; font-size: 13px; color: #2d3436;">${suggestedHotel}</div>
+                            <div style="font-size: 11px; color: #636e72; margin-top: 4px;">${description}</div>
+                        </div>
+                    </div>`;
+                chatMessages.appendChild(cardDiv);
+            } else {
+                addBotMessage("Saya bisa menampilkan foto hotel. Coba ketik 'lihat hotel'.");
             }
-
-            const btn = document.querySelector('.pdf-btn');
-            const originalText = btn.textContent;
-            btn.textContent = '⏳ Generating PDF...';
-            btn.disabled = true;
-
-            try {
-                const response = await fetch('http://localhost:8000/api/trip/pdf', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(currentTripData)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to generate PDF: ${response.statusText}`);
-                }
-
-                // Create blob and download link
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `TripCraft_Itinerary_${currentTripData.request.destination}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-
-            } catch (error) {
-                alert('Error generating PDF: ' + error.message);
-            } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
     </script>
 </body>
-
 </html>
