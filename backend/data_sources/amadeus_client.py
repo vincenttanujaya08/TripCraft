@@ -87,9 +87,9 @@ class AmadeusFlightClient:
         if GEMINI_AVAILABLE and gemini_key:
             try:
                 genai.configure(api_key=gemini_key)
-                self.llm_model = genai.GenerativeModel("gemini-2.0-flash")
+                self.llm_model = genai.GenerativeModel("gemini-2.5-flash")
                 self.llm_enabled = True
-                logger.info("✅ LLM airport resolver enabled (gemini-2.0-flash)")
+                logger.info("✅ LLM airport resolver enabled (gemini-2.5-flash)")
             except Exception as e:
                 logger.error(f"Failed to initialize LLM: {e}")
                 self.llm_enabled = False
@@ -256,6 +256,10 @@ class AmadeusFlightClient:
         except ResponseError as error:
             logger.error(f"❌ Amadeus API error [{error.response.status_code}]: {error.description}")
             
+            # Log full response body
+            if hasattr(error, 'response') and hasattr(error.response, 'body'):
+                logger.error(f"   📜 Full Error Body: {error.response.body}")
+
             if hasattr(error, 'response') and hasattr(error.response, 'result'):
                 errors = error.response.result.get('errors', [])
                 for err in errors:

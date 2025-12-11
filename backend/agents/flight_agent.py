@@ -469,7 +469,56 @@ Your JSON:"""
         
         except Exception as e:
             self.logger.error(f"❌ [Tier 3] Error: {e}")
-            return [], "llm_error"
+            
+            # TIER 3.5: Hardcoded Heuristic Fallback (Safety Net)
+            self.logger.info("🛡️ [Tier 3.5] Using hardcoded heuristic fallback")
+            
+            # Determine route category
+            category = self._estimate_route_category(request.origin or "Jakarta", request.destination)
+            price_range = self.REALISTIC_PRICES.get(category, self.REALISTIC_PRICES["medium_domestic"])
+            
+            # Use average price
+            avg_price = (price_range["min"] + price_range["max"]) // 2
+            
+            # Create flight data
+            flights_data = []
+            
+            # Outbound
+            departure = datetime.combine(request.start_date, datetime.min.time().replace(hour=8))
+            arrival = departure + timedelta(hours=2) # Assume 2h
+            
+            flights_data.append({
+                "airline": "Estimated Airline",
+                "flight_number": "SAFE-OUT",
+                "departure_airport": (request.origin or "JKT")[:3].upper(),
+                "arrival_airport": request.destination[:3].upper(),
+                "departure_time": departure.isoformat(),
+                "arrival_time": arrival.isoformat(),
+                "duration_hours": 2.0,
+                "price": avg_price,
+                "stops": 0,
+                "cabin_class": cabin_class
+            })
+            
+            # Return
+            return_dep = datetime.combine(request.end_date, datetime.min.time().replace(hour=16))
+            return_arr = return_dep + timedelta(hours=2)
+            
+            flights_data.append({
+                "airline": "Estimated Airline",
+                "flight_number": "SAFE-RET",
+                "departure_airport": request.destination[:3].upper(),
+                "arrival_airport": (request.origin or "JKT")[:3].upper(),
+                "departure_time": return_dep.isoformat(),
+                "arrival_time": return_arr.isoformat(),
+                "duration_hours": 2.0,
+                "price": avg_price,
+                "stops": 0,
+                "cabin_class": cabin_class
+            })
+            
+            warnings.append("⚠️ Could not search flights - using route estimate")
+            return flights_data, "estimate"
     
     async def _try_ground_transport_fallback(
         self,

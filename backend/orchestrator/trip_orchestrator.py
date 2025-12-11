@@ -500,6 +500,7 @@ class TripOrchestrator:
         )
         
         trip_plan = TripPlan(
+            request=request,
             destination=destination_output,
             flights=flight_output,
             hotels=hotel_output,

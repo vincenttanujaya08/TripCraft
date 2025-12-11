@@ -38,8 +38,8 @@ async def main():
     trip_request = TripRequest(
         destination="Jakarta",
         origin="Surabaya",
-        start_date=date(2025, 12, 4),
-        end_date=date(2025, 12, 25),
+        start_date=date(2026, 2, 4),
+        end_date=date(2026, 2, 25),
         budget=100000000000.0,
         travelers=2,
         preferences=TripPreferences(

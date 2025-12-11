@@ -12,7 +12,7 @@ Author: TripCraft Team
 Date: 2024
 """
 
-from .conversation_manager import ConversationManager
+from .conversation_manager import ConversationManager, get_conversation_manager
 from .intent_parser import IntentParser
 from .modification_engine import ModificationEngine
 from .response_generator import ResponseGenerator
@@ -21,6 +21,7 @@ from .session_store import SessionStore
 
 __all__ = [
     "ConversationManager",
+    "get_conversation_manager",
     "IntentParser",
     "ModificationEngine",
     "ResponseGenerator",

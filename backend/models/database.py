@@ -2,13 +2,36 @@
 SQLAlchemy database models for TripCraft Lite
 """
 
-from sqlalchemy import Column, String, Text, Integer, Float, DateTime, ForeignKey, JSON
+from sqlalchemy import create_engine, Column, String, Text, Integer, Float, DateTime, ForeignKey, JSON
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, sessionmaker
 from datetime import datetime
 import uuid
+import os
+
+# Database configuration
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tripcraft.db")
+
+engine = create_engine(
+    DATABASE_URL, connect_args={"check_same_thread": False}
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+
+def init_db():
+    """Initialize database tables"""
+    Base.metadata.create_all(bind=engine)
+
+
+def get_db():
+    """Database session dependency"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def generate_id(prefix: str = "") -> str:
@@ -90,3 +113,7 @@ class ImageCache(Base):
     
     def __repr__(self):
         return f"<ImageCache {self.query_key} - {self.source}>"
+
+if __name__ == "__main__":
+    init_db()
+    print("✅ Database initialized")

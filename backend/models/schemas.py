@@ -382,6 +382,11 @@ class TripPlan(BaseModel):
     """
     
     # All agent outputs
+    request: Optional["TripRequest"] = Field(
+        default=None,
+        description="Original trip request"
+    )
+
     destination: "DestinationOutput" = Field(
         ...,
         description="Destination information and attractions"

@@ -301,6 +301,7 @@
     </div>
 
     <script>
+        let currentTripData = null;
         const form = document.getElementById('tripForm');
         const resultsDiv = document.getElementById('results');
         const submitBtn = document.getElementById('submitBtn');
@@ -354,6 +355,7 @@
                 }
 
                 const result = await response.json();
+                currentTripData = result;
                 displayResults(result);
 
             } catch (error) {
@@ -452,16 +454,21 @@
                 const b = data.budget.breakdown;
                 html += `
                     <div style="background: white; padding: 15px; border-radius: 6px;">
-                        <p><strong>Accommodation:</strong> Rp ${b.accommodation.toLocaleString()}</p>
-                        <p><strong>Flights:</strong> Rp ${b.flights.toLocaleString()}</p>
-                        <p><strong>Food:</strong> Rp ${b.dining.toLocaleString()}</p>
-                        <p><strong>Activities:</strong> Rp ${b.attractions.toLocaleString()}</p>
+                        <p><strong>Accommodation:</strong> Rp ${(b.accommodation || 0).toLocaleString()}</p>
+                        <p><strong>Flights:</strong> Rp ${(b.flights || 0).toLocaleString()}</p>
+                        <p><strong>Food:</strong> Rp ${(b.food || 0).toLocaleString()}</p>
+                        <p><strong>Activities:</strong> Rp ${(b.activities || 0).toLocaleString()}</p>
+                        <p><strong>Transport:</strong> Rp ${(b.transportation_local || 0).toLocaleString()}</p>
+                        <p><strong>Misc:</strong> Rp ${(b.miscellaneous || 0).toLocaleString()}</p>
                         <p style="border-top: 2px solid #ddd; margin-top: 10px; padding-top: 10px;">
-                            <strong>TOTAL:</strong> Rp ${b.total.toLocaleString()}
+                            <strong>TOTAL:</strong> Rp ${(b.total || 0).toLocaleString()}
                         </p>
                         <p style="color: ${data.budget.is_over_budget ? '#f44' : '#4a4'}; font-weight: bold;">
                             ${data.budget.is_over_budget ? '⚠️ Over Budget' : '✅ Within Budget'}
                         </p>
+                        <button onclick="downloadPDF()" class="pdf-btn" style="width:100%; margin-top:15px; background:#e74c3c; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer;">
+                            📄 Download Itinerary PDF
+                        </button>
                     </div>
                 `;
                 html += '</div>';
@@ -476,6 +483,49 @@
             }
 
             resultsDiv.innerHTML = html;
+        }
+
+        async function downloadPDF() {
+            if (!currentTripData) {
+                alert("No trip plan available to download.");
+                return;
+            }
+
+            const btn = document.querySelector('.pdf-btn');
+            const originalText = btn.textContent;
+            btn.textContent = '⏳ Generating PDF...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:8000/api/trip/pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(currentTripData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to generate PDF: ${response.statusText}`);
+                }
+
+                // Create blob and download link
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `TripCraft_Itinerary_${currentTripData.request.destination}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+            } catch (error) {
+                alert('Error generating PDF: ' + error.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
         }
     </script>
 </body>

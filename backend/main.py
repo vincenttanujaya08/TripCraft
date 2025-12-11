@@ -72,15 +72,16 @@ async def health_check():
 
 
 # Import routers
-from backend.routers import conversation
+from backend.routers import conversation, trip
 app.include_router(conversation.router, prefix="/api/conversation", tags=["conversation"])
+app.include_router(trip.router, prefix="/api", tags=["trip"])
 
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("BACKEND_PORT", 8000))
     uvicorn.run(
-        "main:app",
+        "backend.main:app",
         host="0.0.0.0",
         port=port,
         reload=True

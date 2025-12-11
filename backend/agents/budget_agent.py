@@ -62,6 +62,15 @@ class BudgetAgent(BaseAgent):
         local_transport_cost = self._estimate_local_transport(request)
         miscellaneous_cost = self._estimate_miscellaneous(request)
         
+        # Log Detailed Breakdown
+        self.logger.info(f"📊 BUDGET BREAKDOWN:")
+        self.logger.info(f"   🏨 Accommodation: Rp {accommodation_cost:,.0f}")
+        self.logger.info(f"   ✈️  Flights:      Rp {flights_cost:,.0f}")
+        self.logger.info(f"   🍽️  Food:         Rp {food_cost:,.0f}")
+        self.logger.info(f"   🎟️  Activities:   Rp {activities_cost:,.0f}")
+        self.logger.info(f"   🚕 Transport:    Rp {local_transport_cost:,.0f}")
+        self.logger.info(f"   🛍️  Misc:         Rp {miscellaneous_cost:,.0f}")
+
         # Total
         total_cost = (
             accommodation_cost + 
