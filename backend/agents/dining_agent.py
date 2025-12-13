@@ -29,17 +29,14 @@ class DiningAgent(BaseAgent):
         super().__init__("Dining")
         self.retriever = get_smart_retriever()
         
-        # Check if LLM available
+        # Check if LLM available (Gemini)
         self.llm_enabled = False
         try:
-            import google.generativeai as genai
-            import os
-            gemini_key = os.getenv("GEMINI_API_KEY")
-            if gemini_key:
-                genai.configure(api_key=gemini_key)
-                self.llm_model = genai.GenerativeModel("gemini-2.5-flash")
-                self.llm_enabled = True
-                logger.info("✅ LLM fallback enabled for restaurant generation")
+            # import google.generativeai as genai <-- REMOVED
+            from backend.utils.llm_client import GeminiClient # <-- ADDED
+            self.llm_model = GeminiClient()
+            self.llm_enabled = True
+            logger.info("✅ LLM fallback enabled for restaurant generation (Gemini)")
         except Exception as e:
             logger.warning(f"LLM not available: {e}")
     
@@ -304,27 +301,9 @@ JSON format:
 
 Price guidelines for {destination}:
 - Budget ($): Rp 30,000 - 75,000
-- Mid-range ($$): Rp 100,000 - 200,000
-- Upscale ($$$): Rp 250,000 - 400,000
-
-Example for Bali:
-[
-  {{"name": "Warung Makan Bu Oka", "cuisine": "Indonesian", "price_range": "$", "average_cost_per_person": 50000, "rating": 4.3, "specialties": ["babi guling", "sate lilit"], "location": "Ubud", "meal_type": ["lunch", "dinner"], "description": "Famous for traditional Balinese roast pork"}},
-  {{"name": "Kynd Community", "cuisine": "Healthy Cafe", "price_range": "$$", "average_cost_per_person": 120000, "rating": 4.5, "specialties": ["smoothie bowls", "vegan options"], "location": "Seminyak", "meal_type": ["breakfast", "lunch"], "description": "Instagram-worthy healthy breakfast spot"}}
-]
-
-Generate 15 restaurants for {destination}:"""
-
-            response = self.llm_model.generate_content(
-                prompt,
-                generation_config={
-                    "temperature": 0.7,
-                    "top_p": 0.9,
-                    "max_output_tokens": 2000,
-                }
-            )
+- Mid-range ($$): Rp 100,000 - 200,000"""
             
-            # Parse JSON
+            response = self.llm_model.generate_content(prompt)
             text = response.text.strip()
             
             # Remove markdown if present

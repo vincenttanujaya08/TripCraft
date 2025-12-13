@@ -25,13 +25,8 @@ except ImportError:
     AMADEUS_AVAILABLE = False
     logger.warning("Amadeus SDK not installed")
 
-# Try to import Gemini
-try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
-    logger.warning("Google Generative AI not installed")
+# Import Unified Gemini Client
+from backend.utils.llm_client import GeminiClient
 
 
 class DateValidationError(Exception):
@@ -80,24 +75,14 @@ class AmadeusFlightClient:
                     self.enabled = False
                     self.client = None
         
-        # Initialize Gemini for LLM resolution
-        self.llm_enabled = False
-        gemini_key = os.getenv("GEMINI_API_KEY")
-        
-        if GEMINI_AVAILABLE and gemini_key:
-            try:
-                genai.configure(api_key=gemini_key)
-                self.llm_model = genai.GenerativeModel("gemini-2.5-flash")
-                self.llm_enabled = True
-                logger.info("✅ LLM airport resolver enabled (gemini-2.5-flash)")
-            except Exception as e:
-                logger.error(f"Failed to initialize LLM: {e}")
-                self.llm_enabled = False
-        else:
-            if not GEMINI_AVAILABLE:
-                logger.warning("LLM resolver not available - Gemini SDK not installed")
-            elif not gemini_key:
-                logger.warning("LLM resolver not available - GEMINI_API_KEY not found")
+        # Initialize LLM (Gemini)
+        try:
+            self.llm_model = GeminiClient()
+            self.llm_enabled = True
+            logger.info("✅ LLM airport resolver enabled (Gemini)")
+        except Exception as e:
+            logger.error(f"Failed to initialize LLM: {e}")
+            self.llm_enabled = False
     
     def validate_date(self, flight_date: date, date_type: str = "departure") -> Dict[str, Any]:
         """Validate flight date is within acceptable range"""
@@ -482,15 +467,7 @@ Small Village → NONE
 
 Your answer (ONLY the code or NONE):"""
 
-            response = self.llm_model.generate_content(
-                prompt,
-                generation_config={
-                    "temperature": 0.1,
-                    "top_p": 0.9,
-                    "top_k": 1,
-                    "max_output_tokens": 10,
-                }
-            )
+            response = self.llm_model.generate_content(prompt)
             
             if not response or not hasattr(response, 'text'):
                 logger.warning(f"LLM returned empty response for {city_name}")

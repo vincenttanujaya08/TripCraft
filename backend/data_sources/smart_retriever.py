@@ -9,7 +9,8 @@ from typing import Optional, List, Dict, Any, Literal, Tuple
 from datetime import date
 from .seed_loader import get_seed_loader
 from .opentripmap_client import get_opentripmap_client
-from .gemini_fallback import get_gemini_fallback
+# from .gemini_fallback import get_gemini_fallback <-- REMOVED
+from .llm_fallback import get_llm_fallback  # <-- ADDED
 from .amadeus_client import get_amadeus_client
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ class SmartRetriever:
     def __init__(
         self,
         opentripmap_key: Optional[str] = None,
-        gemini_key: Optional[str] = None,
+        gemini_key: Optional[str] = None, # kept for signature compat but unused
         amadeus_key: Optional[str] = None,
         amadeus_secret: Optional[str] = None
     ):
@@ -32,19 +33,23 @@ class SmartRetriever:
         
         Args:
             opentripmap_key: OpenTripMap API key (optional)
-            gemini_key: Gemini API key (required for LLM fallback)
+            gemini_key: Gemini API key (DEPRECATED/UNUSED)
             amadeus_key: Amadeus API key (optional, for real flight data)
             amadeus_secret: Amadeus API secret (optional)
         """
         self.seed_loader = get_seed_loader()
         self.opentripmap = get_opentripmap_client(api_key=opentripmap_key)
-        self.gemini = get_gemini_fallback(api_key=gemini_key)
+        
+        # Use LLM Fallback (Gemini)
+        self.llm = get_llm_fallback()
+        
         self.amadeus = get_amadeus_client(api_key=amadeus_key, api_secret=amadeus_secret)
         
         logger.info(
             f"SmartRetriever initialized - "
             f"Amadeus: {'enabled' if self.amadeus.enabled else 'disabled'}, "
-            f"OpenTripMap: {'enabled' if self.opentripmap.enabled else 'disabled'}"
+            f"OpenTripMap: {'enabled' if self.opentripmap.enabled else 'disabled'}, "
+            f"LLM: {'enabled' if self.llm.enabled else 'disabled'}"
         )
     
     # ========================================
@@ -106,7 +111,7 @@ class SmartRetriever:
         # ========================================
         logger.info(f"[Tier 3] Generating restaurants via LLM for {city}")
         
-        llm_restaurants = await self.gemini.generate_restaurants(
+        llm_restaurants = await self.llm.generate_restaurants(
             city=city,
             cuisine=cuisine,
             count=count
@@ -298,7 +303,7 @@ class SmartRetriever:
         # ========================================
         logger.info(f"[Tier 3] Generating flight estimate via LLM")
         
-        llm_flight = await self.gemini.generate_flight_estimate(
+        llm_flight = await self.llm.generate_flight_estimate(
             origin=origin,
             destination=destination
         )

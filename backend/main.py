@@ -34,7 +34,6 @@ async def startup_event():
     from backend.models.database import init_db
     init_db()
     print("✅ TripCraft Lite API started successfully!")
-    print("📍 Conversational interface enabled at /api/conversation/chat")
 
 
 @app.get("/")
@@ -46,7 +45,6 @@ async def root():
         "status": "running",
         "features": {
             "trip_planning": "enabled",
-            "conversational_interface": "enabled",
             "image_fetching": "enabled"
         }
     }
@@ -66,14 +64,12 @@ async def health_check():
         "database": "connected",
         "gemini_api": "configured" if gemini_key else "missing",
         "unsplash_api": "configured" if unsplash_key else "missing",
-        "opentripmap_api": "configured" if os.getenv("OPENTRIPMAP_API_KEY") else "optional",
-        "conversational_system": "active"
+        "opentripmap_api": "configured" if os.getenv("OPENTRIPMAP_API_KEY") else "optional"
     }
 
 
 # Import routers
-from backend.routers import conversation, trip
-app.include_router(conversation.router, prefix="/api/conversation", tags=["conversation"])
+from backend.routers import trip
 app.include_router(trip.router, prefix="/api", tags=["trip"])
 
 

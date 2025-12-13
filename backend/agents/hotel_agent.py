@@ -7,7 +7,9 @@ import json
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from dotenv import load_dotenv
-import google.generativeai as genai
+from dotenv import load_dotenv
+# import google.generativeai as genai <-- REMOVED
+from backend.utils.llm_client import GeminiClient # <-- ADDED
 from backend.models.schemas import (
     TripRequest, 
     HotelOutput, 
@@ -27,13 +29,9 @@ class HotelAgent(BaseAgent):
         
         # Initialize Gemini
         try:
-            api_key = os.getenv("GEMINI_API_KEY")
-            if api_key:
-                genai.configure(api_key=api_key)
-                self.model = genai.GenerativeModel("gemini-2.5-flash")
-                self.llm_available = True
-            else:
-                self.llm_available = False
+            self.model = GeminiClient()
+            self.llm_available = True
+            print("✅ Gemini initialized for HotelAgent")
         except Exception as e:
             print(f"⚠️  Gemini not available: {e}")
             self.llm_available = False

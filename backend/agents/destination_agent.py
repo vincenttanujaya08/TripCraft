@@ -6,7 +6,8 @@ import json
 import os
 from datetime import datetime
 from dotenv import load_dotenv
-import google.generativeai as genai
+# import google.generativeai as genai  <-- REMOVED
+from backend.utils.llm_client import GeminiClient  # <-- ADDED
 from backend.models.schemas import (
     TripRequest, 
     DestinationOutput, 
@@ -26,15 +27,11 @@ class DestinationAgent(BaseAgent):
         super().__init__("Destination")
         self.seed_loader = SeedLoader()
         
-        # Initialize Gemini from environment variable
+        # Initialize Gemini
         try:
-            api_key = os.getenv("GEMINI_API_KEY")
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY not found in environment")
-            
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel("gemini-2.5-flash")
+            self.model = GeminiClient()
             self.llm_available = True
+            print("✅ Gemini initialized for DestinationAgent")
         except Exception as e:
             print(f"⚠️  Gemini not available: {e}")
             self.llm_available = False

@@ -387,10 +387,7 @@ Jakarta → Village: {{"has_airport": false}}
 
 Your JSON:"""
 
-            response = self.amadeus_client.llm_model.generate_content(
-                prompt,
-                generation_config={"temperature": 0.2, "max_output_tokens": 100}
-            )
+            response = self.amadeus_client.llm_model.generate_content(prompt)
             
             import json
             text = response.text.strip()
