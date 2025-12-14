@@ -10,7 +10,6 @@
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-
     <style>
         /* --- COPY STYLE UI MODERN (TIDAK BERUBAH) --- */
         :root {
@@ -428,12 +427,13 @@
                     <div style="display: grid; grid-template-columns: 1fr; gap: 0;">
                         <div class="form-group">
                             <label>Start Date</label>
-                            <input type="date" id="start_date" class="form-control" required
+                            <input type="date" id="start_date" class="form-control" required placeholder="dd/mm/yyyy"
                                 style="padding-left: 16px;">
                         </div>
                         <div class="form-group">
                             <label>End Date</label>
-                            <input type="date" id="end_date" class="form-control" required style="padding-left: 16px;">
+                            <input type="date" id="end_date" class="form-control" required placeholder="dd/mm/yyyy"
+                                style="padding-left: 16px;">
                         </div>
                     </div>
 
@@ -508,14 +508,8 @@
         const resultsDiv = document.getElementById('results');
         const submitBtn = document.getElementById('submitBtn');
 
-        // Default Dates
-        const today = new Date();
-        const nextWeek = new Date(today);
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        const weekAfter = new Date(nextWeek);
-        weekAfter.setDate(weekAfter.getDate() + 4);
-        document.getElementById('start_date').value = nextWeek.toISOString().split('T')[0];
-        document.getElementById('end_date').value = weekAfter.toISOString().split('T')[0];
+        // No default dates - user must select
+        // (Removed auto-fill to make it clearer that dates are required)
 
         // --- REAL FETCH LOGIC (FROM USER CODE) ---
         form.addEventListener('submit', async (e) => {
@@ -583,21 +577,25 @@
                 <div class="error-message">
                     <h3><i class="fas fa-exclamation-triangle"></i> Connection Error</h3>
                     <p>${message}</p>
-                    <p style="font-size: 13px; margin-top: 10px;">Please ensure your Python backend is running at <strong>http://localhost:8000</strong></p>
                 </div>
             `;
         }
 
-        // --- ADAPTED DISPLAY LOGIC FOR CLEAN UI ---
+        // --- DISPLAY LOGIC (Original Colorful UI) ---
         function displayResults(data) {
             let html = `
-                <h2 style="margin-bottom: 20px; color: var(--text-main);">Trip Plan: ${data.request.destination}</h2>
-            `;
+                <div style = "display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;" >
+                    <h2 style="color: var(--text-main); margin:0;">Trip Plan: ${data.request.destination}</h2>
+                    <button onclick="downloadPDF()" class="btn-primary" style="padding: 8px 16px; font-size: 13px; background: var(--secondary);">
+                        <i class="fas fa-file-pdf"></i> Download PDF
+                    </button>
+                </div>
+                `;
 
             // 1. Destination & Attractions Ticket
             if (data.destination) {
                 html += `
-                <div class="ticket-card">
+                <div class="ticket-card" >
                     <div class="ticket-header">
                         <h3><i class="fas fa-map-marked-alt"></i> Destination</h3>
                         <span class="status">Confirmed</span>
@@ -625,14 +623,14 @@
                             `).join('')}
                         ` : ''}
                     </div>
-                </div>`;
+                </div> `;
             }
 
             // 2. Hotel Ticket
             if (data.hotel && data.hotel.recommended_hotel) {
                 const h = data.hotel.recommended_hotel;
                 html += `
-                <div class="ticket-card">
+                <div class="ticket-card" >
                     <div class="ticket-header" style="background: linear-gradient(135deg, #00cec9, #00b894);">
                         <h3><i class="fas fa-bed"></i> Accommodation</h3>
                         <span class="status">Recommended</span>
@@ -648,13 +646,13 @@
                             <div class="info-value highlight" style="font-size: 16px;">Rp ${h.price_per_night.toLocaleString()}</div>
                         </div>
                     </div>
-                </div>`;
+                </div> `;
             }
 
-            // 3. Restaurants Ticket (New for Clean UI)
+            // 3. Restaurants Ticket
             if (data.dining && data.dining.restaurants) {
                 html += `
-                <div class="ticket-card">
+                <div class="ticket-card" >
                     <div class="ticket-header" style="background: linear-gradient(135deg, #a29bfe, #6c5ce7);">
                         <h3><i class="fas fa-utensils"></i> Dining</h3>
                     </div>
@@ -666,14 +664,76 @@
                             </div>
                         `).join('')}
                     </div>
-                </div>`;
+                </div> `;
             }
 
-            // 4. Budget Breakdown Ticket
+            // 4. Detailed Itinerary (Per Day)
+            if (data.itinerary && data.itinerary.days) {
+                data.itinerary.days.forEach(day => {
+                    // Find correct meal plan using day number
+                    const mealPlan = data.dining.meal_plan ? data.dining.meal_plan.find(m => m.day === day.day_number) : null;
+
+                    html += `
+                <div class="ticket-card" style = "page-break-inside: avoid;" >
+                        <div class="ticket-header" style="background: transparent; border-bottom: 2px solid var(--primary);">
+                            <h3 style="color: var(--primary); font-size: 18px;">DAY ${day.day_number} - ${day.date}</h3>
+                        </div>
+                        <div class="ticket-body">
+                            
+                            <!-- Meal Summary Section -->
+                            ${mealPlan ? `
+                            <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px dashed #eee;">
+                                ${mealPlan.lunch ? `
+                                <div style="display:flex; margin-bottom: 10px;">
+                                    <div style="width: 80px; font-weight:700; font-size:13px;">■ ■ Lunch</div>
+                                    <div>
+                                        <div style="font-weight:700; color: #2d3436;">${mealPlan.lunch.name}</div>
+                                        <div style="font-size: 12px; color: #636e72;">
+                                            ${mealPlan.lunch.cuisine} • Rp ${mealPlan.lunch.average_cost_per_person.toLocaleString()}/person
+                                        </div>
+                                    </div>
+                                </div>` : ''}
+                                
+                                ${mealPlan.dinner ? `
+                                <div style="display:flex;">
+                                    <div style="width: 80px; font-weight:700; font-size:13px;">■ Dinner</div>
+                                    <div>
+                                        <div style="font-weight:700; color: #2d3436;">${mealPlan.dinner.name}</div>
+                                        <div style="font-size: 12px; color: #636e72;">
+                                            ${mealPlan.dinner.cuisine} • Rp ${mealPlan.dinner.average_cost_per_person.toLocaleString()}/person
+                                        </div>
+                                    </div>
+                                </div>` : ''}
+                            </div>
+                            ` : ''}
+
+                            <!-- Activities Section -->
+                            <div style="font-weight: 700; margin-bottom: 10px; font-size: 13px; color: #2d3436;">■ ACTIVITIES</div>
+                            
+                            ${day.activities.map((activity, index) => `
+                                <div style="margin-bottom: 15px;">
+                                    <div style="font-weight: 600; color: #2d3436; font-size: 14px;">
+                                        ${index + 1}. ${activity.name.replace(/^Attraction: |^Dining: /i, '')} <span style="font-weight:400; color:#636e72;">(${activity.time})</span>
+                                    </div>
+                                    <div style="font-size: 13px; color: #636e72; line-height: 1.4; margin-top: 2px;">
+                                        ${activity.description}
+                                    </div>
+                                </div>
+                            `).join('')}
+
+                            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; font-weight: 700; font-size: 14px; text-align: right;">
+                                Day ${day.day_number} Total: Rp ${day.total_estimated_cost.toLocaleString()}
+                            </div>
+                        </div>
+                    </div> `;
+                });
+            }
+
+            // 5. Budget Breakdown Ticket
             if (data.budget) {
                 const b = data.budget.breakdown;
                 html += `
-                <div class="ticket-card">
+                <div class="ticket-card" >
                     <div class="ticket-header" style="background: linear-gradient(135deg, #2d3436, #636e72);">
                         <h3><i class="fas fa-coins"></i> Financials</h3>
                         <span class="status" style="background: ${data.budget.is_over_budget ? '#fab1a0; color: #d63031' : '#55efc4; color: #00b894'}">
@@ -693,7 +753,7 @@
                             <span class="info-label">Food & Dining</span>
                             <span class="info-value">Rp ${(b.food || 0).toLocaleString()}</span>
                         </div>
-                         <div class="info-row" style="border-bottom: 2px solid #2d3436;">
+                         <div class="info-row">
                             <span class="info-label">Activities</span>
                             <span class="info-value">Rp ${(b.activities || 0).toLocaleString()}</span>
                         </div>
@@ -715,9 +775,55 @@
                 </div>`;
             }
 
-
-
             resultsDiv.innerHTML = html;
+        }
+
+        // NEW: Backend PDF generation (text-based PDF)
+        async function downloadPDF() {
+            if (!currentTripData) {
+                alert('No trip data available. Please plan a trip first.');
+                return;
+            }
+
+            const btn = document.querySelector('button[onclick="downloadPDF()"]');
+            const originalHTML = btn.innerHTML;
+
+            try {
+                // Show loading state
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+
+                // Send trip data to backend for PDF generation
+                const response = await fetch('http://localhost:8000/api/trip/pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentTripData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to generate PDF');
+                }
+
+                // Download the PDF
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'TripCraft_Itinerary.pdf';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+                console.log('✅ PDF downloaded successfully!');
+
+            } catch (error) {
+                console.error('PDF generation failed:', error);
+                alert('Failed to generate PDF. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
         }
 
         // --- CHAT LOGIC ---
