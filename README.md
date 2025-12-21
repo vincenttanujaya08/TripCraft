@@ -249,6 +249,7 @@ Edit `seed_data/destinations.json`:
 ### "GEMINI_API_KEY not found"
 
 Make sure `.env` file is in project root and has valid key:
+
 ```bash
 GEMINI_API_KEY=your_actual_key_here
 ```
@@ -256,6 +257,7 @@ GEMINI_API_KEY=your_actual_key_here
 ### "Database not found"
 
 Run database initialization:
+
 ```bash
 cd backend
 python -m models.database
@@ -264,6 +266,7 @@ python -m models.database
 ### "Port 8000 already in use"
 
 Change port in `.env`:
+
 ```bash
 BACKEND_PORT=8001
 ```
